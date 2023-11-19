@@ -1,0 +1,77 @@
+@charset "utf-8";
+
+article {
+    line-height: 1.8;
+    margin-bottom: 10ex;
+}
+
+input {
+    width: 90vw;
+}
+
+button {
+    margin-top: 2ex;
+    width: 90vw;
+}
+
+svg {
+    margin-top: 2ex;
+    border: 1px solid gray;
+    width: 90vw;
+    height: 90vw;
+}
+
+pre {
+    border: 1px solid gray;
+    width: 90vw;
+    height: 50ex;
+    padding: 1ex;
+    overflow: auto;
+}
+
+footer {
+    margin-top: 5ex;
+}
+
+@media (orientation: landscape) {
+
+    article {
+        line-height: 1.5;
+    }
+
+    input {
+        width: 90vh;
+    }
+
+    button {
+        width: 90vh;
+    }
+
+    svg {
+        width: 90vh;
+        height: 90vh;
+    }
+
+    @media (min-width: 768px) {
+
+        #pattern {
+            width: 300px;
+        }
+
+        button {
+            width: auto;
+        }
+
+        button#create {
+            margin-top: 0ex;
+        }
+        
+        svg {
+            width: 300px;
+            height: 300px;
+        }
+
+    }
+
+}
+

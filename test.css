@@ -1,0 +1,51 @@
+@charset "utf-8";
+
+article {
+    line-height: 1.8;
+    margin-bottom: 10ex;
+}
+
+button {
+    width: 90vw;
+}
+
+table {
+    margin-bottom: 2ex;
+    border: 1px outset gray;
+    border-collapse: collapse;
+}
+
+table tr th {
+    border: 1px inset gray;
+    padding: 0.5ex 1ex;
+}
+
+table tr td {
+    border: 1px inset gray;
+    padding: 0.5ex 1ex;
+}
+
+.hidden {
+    display: none;
+}
+
+.symbol {
+    text-align: center;
+}
+
+.error {
+    color: red;
+}
+
+@media (min-width: 768px) {
+
+    article {
+        line-height: 1.5;
+    }
+
+    button {
+        width: auto;
+    }
+
+}
+
