@@ -72,6 +72,11 @@ Controller.prototype = {
 
     // download as file
     "_download": function(e) {
+        if (!this._core) {
+            // no source code
+            return;
+        }
+
         // get the blob string.
         const blob = new Blob([ this._sourceArea.innerText ], { "type": "text/plain" });
         const url = URL.createObjectURL(blob);
