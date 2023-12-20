@@ -91,6 +91,7 @@ SvgCore.prototype = Object.create(jmotion.Core.prototype, {
     }},
 
 });
+SvgCore.prototype.constructor = SvgCore;
 
 // Animation creator class
 const AnimCreator = function() {
