@@ -3,66 +3,136 @@ const SvgCore = function(svg) {
     jmotion.Core.call(this, svg);
 
     // graphic elements
-    this._hands = this._getElements(this.front, "use", "_hand");
-    this._arms = [];
-    this._arms.push(this._getElements(this.back, "line", "_right"));
-    this._arms.push(this._getElements(this.back, "line", "_left"));
+    const right = this._getElements(this.back, "line", "_right");
+    const left = this._getElements(this.back, "line", "_left");
+    this.setArms([ right, left ]);
+    this.setHands(this._getElements(this.front, "use", "_hand"));
 }
 
 // SVG core prototype
 SvgCore.prototype = Object.create(jmotion.Core.prototype, {
 
-    // set the animation
-    "animate": { "value": function(chain) {
-        // hands
-        const count = Math.min(chain.arms.length, this._hands.length);
-        for (let i = 0; i < count; i++) {
-            const element = this._hands[i];
-            const hand = this._createPlaneChains(element.id, [], chain.arms[i][0]);
-            this._appendAnimation(element, hand);
+    // set body elements
+    "setBody": { "value": function(elements, append, layer) {
+        jmotion.Core.prototype.setBody.call(this, elements, append, layer);
+        if (!Array.isArray(elements)) {
+            return;
         }
 
+        // set the ID
+        for (const element of elements) {
+            if (element.id) {
+                element.id = this._getId(element.id);
+            }
+        }
+    }},
+
+    // set arm elements
+    "setArms": { "value": function(arms, layer) {
+        jmotion.Core.prototype.setArms.call(this, arms, layer);
+        this._arms = [];
+        if (!Array.isArray(arms)) {
+            return;
+        }
+        Array.prototype.push.apply(this._arms, arms);
+
+        // set the ID
+        const names = this._getNames(this._arms.length);
+        for (let i = 0; i < this._arms.length; i++) {
+            for (let j = 0; j < this._arms[i].length; j++) {
+                this._arms[i][j].id = this._getId(names[i], j);
+            }
+        }
+    }},
+
+    // set hand elements
+    "setHands": { "value": function(elements, layer) {
+        jmotion.Core.prototype.setHands.call(this, elements, layer);
+        this._hands = [];
+        if (!Array.isArray(elements)) {
+            return;
+        }
+        Array.prototype.push.apply(this._hands, elements);
+        for (const hand of this._hands) {
+            hand.removeAttribute("x");
+            hand.removeAttribute("y");
+        }
+
+        // set the ID
+        const names = this._getNames(this._hands.length);
+        for (let i = 0; i < this._hands.length; i++) {
+            this._hands[i].id = this._getId(names[i], "hand");
+        }
+    }},
+
+    // set prop elements
+    "setProps": { "value": function(elements) {
+        if (Array.isArray(elements)) {
+            // IDs are stored internally, so IDs must be set up first
+            for (let i = 0; i < elements.length; i++) {
+                const element = elements[i];
+                if (element.id) {
+                    element.id = this._getId(element.id);
+                } else {
+                    element.id = this._getId("prop", i);
+                }
+            }
+        }
+        jmotion.Core.prototype.setProps.call(this, elements);
+    }},
+
+    // set the animation
+    "animate": { "value": function(orbits) {
         // arms
-        const number = Math.min(chain.arms.length, this._arms.length);
+        const number = Math.min(orbits.arms.length, this._arms.length);
         for (let i = 0; i < number; i++) {
             // starting with the wrist
-            const length = Math.min(chain.arms[i].length - 1, this._arms[i].length);
+            const length = Math.min(orbits.arms[i].length - 1, this._arms[i].length);
             for (let j = 0; j < length; j++) {
                 const element = this._arms[i][j];
-                const arm1 = this._createPlaneChains(element.id, [], chain.arms[i][j], "x1", "y1");
-                const arm2 = this._createPlaneChains(element.id, [], chain.arms[i][j + 1], "x2", "y2");
+                const arm1 = this._createNumericChain(element.id, orbits.arms[i][j], "x1", "y1");
+                const arm2 = this._createNumericChain(element.id, orbits.arms[i][j + 1], "x2", "y2");
                 this._appendAnimation(element, arm1, arm2);
             }
 
             // last joint
             if (length < this._arms[i].length) {
                 const element = this._arms[i][length];
-                const arm1 = this._createPlaneChains(element.id, [], chain.arms[i][length], "x1", "y1");
+                const arm1 = this._createNumericChain(element.id, orbits.arms[i][length], "x1", "y1");
                 this._appendAnimation(element, arm1);
             }
         }
 
-        // props
-        const init = [];
-        for (const states of chain.props) {
-            const first = states.init[0] || states.loop[0];
-            init.push({ "x": first.x.getFirstValue(), "y": first.y.getFirstValue() });
+        // hands
+        const count = Math.min(orbits.hands.length, this._hands.length);
+        for (let i = 0; i < count; i++) {
+            const element = this._hands[i];
+            const hand = orbits.hands[i].setId(element.id);
+            let loop = 0;
+            while (loop < hand.planes.length && hand.planes[loop] instanceof HaltPlane) {
+                loop++;
+            }
+            hand.setChain(loop);
+            this._appendAnimation(element, hand);
         }
-        this.drawProps(init);
+
+        // props
+        this.drawProps(new Array(orbits.props.length).fill(new DOMPoint()));
+        const holds = Array.from(new Set(orbits.props.map(elem => elem.paths).flat()));
+        holds.sort(this._compare.bind(this)).forEach(this.defs.appendChild, this.defs);
         const props = this._getElements(this.middle, "use", "_prop").reverse();
         for (let i = 0; i < props.length; i++) {
             const element = props[i];
-            const prop = this._createPlaneChains(element.id, chain.props[i].init, chain.props[i].loop);
-            this._appendAnimation(element, prop);
+            element.removeAttribute("x");
+            element.removeAttribute("y");
+            const orbit = orbits.props[i];
+            const prop = orbit.chain.setId(element.id);
+            this._appendAnimation(element, prop.setChain(orbit.loop));
         }
-
-        // resize
-        this.setScale(chain.scale);
-        this.setStyle({ "stroke-width": chain.width });
 
         // remove unused props
         const defs = this._getElements(this.defs, "circle", "prop");
-        const refs = props.map(elem => elem.href.baseVal.slice(1));
+        const refs = props.map(elem => elem.getAttribute("href").slice(1));
         defs.filter(elem => !refs.includes(elem.id)).forEach(this.defs.removeChild, this.defs);
     }},
 
@@ -77,16 +147,62 @@ SvgCore.prototype = Object.create(jmotion.Core.prototype, {
         return elements;
     }},
 
-    // create planar animation chain
-    "_createPlaneChains": { "value": function(name, init, loop, x, y) {
-        const chain = new AnimChain(name, x || "x", y || "y");
-        return chain.setPlanes(init, loop);
+    // get a list of names
+    "_getNames": { "value": function(count) {
+        switch (count) {
+            case 1:
+                return [ "arm" ];
+
+            case 2:
+                return [ "right", "left" ];
+
+            default:
+                const names = [];
+                for (let i = 0; i < count; i++) {
+                    names.push(i);
+                }
+                return names;
+        }
     }},
 
-    // append animations
+    // get the ID
+    "_getId": { "value": function(name, postfix) {
+        const prefix = `${this.svg.id}_`;
+        if (name.startsWith(prefix)) {
+            name = name.substring(prefix.length);
+        }
+        if (postfix == null || postfix === "") {
+            return `${prefix}${name}`;
+        } else {
+            return `${prefix}${name}_${postfix}`;
+        }
+    }},
+
+    // create a chain of numerical planes
+    "_createNumericChain": { "value": function(name, original, x, y) {
+        const plane = new NumericPlane().setDuring(original.x.during);
+        plane.setAttribute(x, y).setValues(original.x.values, original.y.values);
+        const chain = new PlaneChain().addPlane(plane).setId(`${name}_${x}`);
+        chain.begin = original.x.begins[0];
+        return chain.setChain();
+    }},
+
+    // add animation elements
     "_appendAnimation": { "value": function(parent, ...chains) {
         for (const chain of chains) {
             chain.createElements().forEach(parent.appendChild, parent);
+        }
+    }},
+
+    // compare elements
+    "_compare": { "value": function(a, b) {
+        if (a.id == b.id) {
+            return 0;
+        }
+        if (a.id < b.id) {
+            return -1;
+        } else {
+            return 1;
         }
     }},
 
@@ -95,187 +211,183 @@ SvgCore.prototype.constructor = SvgCore;
 
 // Animation creator class
 const AnimCreator = function() {
-    // orbit of the joint
-    this.joints = {};
-    this.joints.right = [
-        [
-            this._createAnimPair(-90, 10, -60, 30, -30, 10),
-            this._createAnimPair(-70, -30, -60, -23, -50, -30),
-        ],
-        [
-            this._createAnimPair(-30, 10, -60, -10, -90, 10),
-            this._createAnimPair(-50, -30, -60, -37, -70, -30),
-        ],
-    ];
-    this.joints.left = [
-        [
-            this._createAnimPair(90, 10, 60, 30, 30, 10),
-            this._createAnimPair(70, -30, 60, -23, 50, -30),
-        ],
-        [
-            this._createAnimPair(30, 10, 60, -10, 90, 10),
-            this._createAnimPair(50, -30, 60, -37, 70, -30),
-        ],
-    ];
-
-    // prop offset relative to hand
-    this.offset = { "right": new DOMPoint(0, -10), "left": new DOMPoint(0, -10) };
-
-    // fields
+    jmotion.BasicCreator.call(this);
+    this._id = "";
+    this._tick = 40;
     this._scale = 1;
-    this._tick = 480;
+    this._unit = this._tick * 12;
 }
 
 // Animation creator prototype
-AnimCreator.prototype = {
+AnimCreator.prototype = Object.create(jmotion.BasicCreator.prototype, {
 
-    // calculate animation chains
-    "calculateChain": function(table, synch) {
-        // check prop data
-        const chain = { "arms": [], "props": [] };
-        if (!Array.isArray(table) || table.some(elem => !this._isValidProp(elem, synch))) {
-            return chain;
+    // set the ID
+    "setId": { "value": function(value) {
+        this._id = value;
+        const paths = [ this.paths.right, this.paths.left ];
+        for (let i = 0; i < paths.length; i++) {
+            for (let j = 0; j < paths[i].length; j++) {
+                for (let k = 0; k < paths[i][j].length; k++) {
+                    paths[i][j][k].id = `${value}_orbit_${i}_${k}${j}`;
+                }
+            }
         }
+    }},
 
-        // get numbers in data
-        const numbers = new Set();
-        table.forEach(elem => elem.numbers.forEach(numbers.add, numbers));
-        numbers.delete(2);
-
-        // get scale
-        const divisions = [ 12, 11, 10, 9, 9, 8, 8, 7, 7, 6, 6, 6, 5, 5, 5, 5, 5, 4, 4, 4, 4, 4, 4, 4, 4, 3, 3, 3, 3, 3, 3 ];
-        const max = Array.from(numbers).reduce((acc, cur) => Math.max(acc, Math.abs(cur)), 5);
-        const div = Math.min(max - 5, divisions.length - 1);
-        this._scale = (max - 1) / 4;
+    // calculate orbits
+    "calculateOrbits": { "value": function(table, synch) {
+        // get a list of coordinates
+        const orbits = jmotion.BasicCreator.prototype.calculateOrbits.call(this, table, synch);
+        this._scale = this.getScale();
+        const max = this._scale * 4 + 1;
+        const div = Math.round(120 / (max + 5));
+        this._unit = this._tick * div;
 
         // orbit of each arm
-        chain.arms.push(this._getArmChains(this.joints.right, false));
-        chain.arms.push(this._getArmChains(this.joints.left, !synch));
+        const points = this._roundPoints(orbits.arms);
+        const arms = this._getArms(points);
+        const hands = [];
+        hands.push(this._getHand(this.paths.right, false));
+        hands.push(this._getHand(this.paths.left, !synch, points[1][0].loop[0]));
 
         // orbit of each prop
-        const right = this._getPropHolds(this.joints.right, this.offset.right);
-        const left = this._getPropHolds(this.joints.left, this.offset.left);
+        const holds = this._createHolds(arms.map(elem => elem[0]));
+        const props = [];
         for (const prop of table) {
-            chain.props.push(this._getPropChains(prop, right, left, synch));
+            props.push(this._getProp(prop, holds[0], holds[1], synch));
         }
+        return { "arms": arms, "hands": hands, "props": props };
+    }},
 
-        // set the size
-        chain.scale = this._scale;
-        chain.width = divisions[0] / divisions[div];
-        return chain;
-    },
-
-    // create an animation pair
-    "_createAnimPair": function(sx, sy, mx, my, ex, ey) {
-        const p1 = { "x": sx, "y": sy };
-        const p2 = { "x": mx, "y": my };
-        const p3 = { "x": ex, "y": ey };
-        const pair = new AnimPair();
-        return pair.setEllipse(p1, p2, p3);
-    },
-
-    // whether it is valid prop data
-    "_isValidProp": function(prop, synch) {
-        // time of first throw
-        if (isNaN(prop.start) || prop.start < 0) {
-            return false;
-        }
-
-        // length of one cycle
-        if (isNaN(prop.length) || prop.length < 0) {
-            return false;
-        }
-
-        // throw height
-        if (!Array.isArray(prop.numbers) || prop.numbers.length != prop.length) {
-            return false;
-        }
-        if (prop.numbers.some(elem => isNaN(elem) || elem == 0)) {
-            return false;
-        }
-        if (!synch && prop.numbers.some(elem => elem < 0)) {
-            return false;
-        }
-
-        // time to throw
-        if (!Array.isArray(prop.times) || prop.times.length != prop.length) {
-            return false;
-        }
-        if (prop.times.some(elem => isNaN(elem) || elem < 1)) {
-            return false;
-        }
-        return true;
-    },
-
-    // get the entire arm movements
-    "_getArmChains": function(joints, lagged) {
-        // leading movement
-        const unit = this._tick / this._scale;
-        const chains = [];
-        for (const joint of joints[0]) {
-            const plane = joint.total.copy().setDuring(unit);
-            if (lagged) {
-                // there is a delay in start
-                plane.addBegin(unit);
-            } else {
-                // no delay in start
-                plane.addBegin(0);
+    // round off the coordinate values
+    "_roundPoints": { "value": function(before) {
+        const after = [];
+        for (const joints of before) {
+            const part = [];
+            for (const joint of joints) {
+                const loop = [];
+                for (const point of joint.loop) {
+                    const x = Math.round(point.x * 100) / 100;
+                    const y = Math.round(point.y * 100) / 100;
+                    loop.push({ "x": x, "y": y });
+                }
+                part.push({ "init": joint.init, "loop": loop });
             }
-            chains.push([ plane ]);
+            after.push(part);
         }
+        return after;
+    }},
 
-        // subsequent movements
-        for (let i = 1; i < joints.length; i++) {
-            for (let j = 0; j < chains.length; j++) {
-                const plane = joints[i][j].total.copy().setDuring(unit);
-                chains[j].push(plane);
+    // get the arm orbits
+    "_getArms": { "value": function(orbits) {
+        const joints = [];
+        for (const arm of orbits) {
+            // arm by arm
+            const joint = [];
+            for (const orbit of arm) {
+                // joint by joint
+                const init = this._transpose(orbit.init);
+                const loop = this._transpose(orbit.loop);
+                const plane = new NumericPlane();
+                plane.addBegin(init.x.length * this._tick);
+                plane.setDuring(loop.x.length * this._tick);
+                plane.setValues(loop.x.concat([ loop.x[0] ]), loop.y.concat([ loop.y[0] ]));
+                joint.push(plane);
             }
+            joints.push(joint);
         }
-        return chains;
-    },
+        return joints;
+    }},
 
-    // get the animation holding the prop
-    "_getPropHolds": function(joints, offset) {
-        const pairs = [];
-        for (const joint of joints.filter(elem => 0 < elem.length)) {
-            pairs.push(joint[0].copy().move(offset));
+    // get the hand orbits
+    "_getHand": { "value": function(paths, lagged, point) {
+        const hand = new PlaneChain();
+        if (lagged) {
+            // there is a delay in start
+            const plane = new HaltPlane().setDuring(this._unit);
+            hand.addPlane(plane.setTo(point));
         }
-        return pairs;
-    },
+        for (const joints of paths) {
+            // orbit by orbit
+            const plane = new MotionPlane().setDuring(this._unit);
+            hand.addPlane(plane.setReferenceId(joints[0].id));
+        }
+        return hand;
+    }},
 
-    // get the entire movement of the prop
-    "_getPropChains": function(prop, forward, opposite, synch) {
-        const states = { "init": [], "loop": [] };
-        const unit = this._tick / this._scale;
-        const half = unit / 2;
-        let init = 0;
+    // create holding orbits for the props
+    "_createHolds": { "value": function(planes) {
+        const offset = [ this.offset.right, this.offset.left ];
+        const holds = [];
+        for (let i = 0; i < planes.length; i++) {
+            const plane = planes[i];
+            const end = plane.x.values.length - 1;
+            const mid = end / 2;
+            const hold = [];
+            for (let j = 0; j < 2; j++) {
+                const start = mid * j;
+
+                // coordinates to string
+                const points = [];
+                for (let k = 0; k <= mid; k++) {
+                    const index = start + k;
+                    const x = Math.round((plane.x.values[index] + offset[i].x) * 100) / 100;
+                    const y = Math.round((plane.y.values[index] + offset[i].y) * 100) / 100;
+                    points.push(`${x},${y}`);
+                }
+
+                // create a path element
+                const element = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                element.setAttribute("id", `${this._id}_hold_${i}_${j}`);
+                element.setAttribute("d", `M ${points.join(" L ")}`);
+
+                // holding orbit
+                const length = element.getTotalLength();
+                const first = element.getPointAtLength(0);
+                const middle = element.getPointAtLength(length / 2);
+                const last = element.getPointAtLength(length);
+                hold.push({ "element": element, "id": element.id, "first": first, "middle": middle, "last": last });
+            }
+            holds.push(hold);
+        }
+        return holds;
+    }},
+
+    // get the prop orbits
+    "_getProp": { "value": function(prop, forward, opposite, synch) {
+        const chain = new PlaneChain();
+        const paths = new Set();
+        const half = this._unit / 2;
 
         // before start
         let lag = prop.start % 2;
         if (lag == 1) {
             [ forward, opposite ] = [ opposite, forward ];
             if (!synch) {
-                init = unit;
+                // there is a delay in start
+                const halt = new HaltPlane().setDuring(this._unit);
+                chain.addPlane(halt.setTo(forward[0].first));
             }
         }
 
         // initial operation
         let time = prop.start;
         for (let i = 0; i < time - lag; i++) {
-            const plane = forward[i % forward.length].total.copy().setDuring(unit);
-            if (0 < init) {
-                plane.addBegin(init);
-                init = 0;
-            }
-            states.init.push(plane);
+            const hold = forward[i % forward.length];
+            paths.add(hold.element);
+            const plane = new MotionPlane().setDuring(this._unit);
+            chain.addPlane(plane.setReferenceId(hold.id));
         }
 
         // tweak
         let prev = prop.numbers[prop.length - 1];
         if (prev == 1) {
-            const plane = forward[time % forward.length].first.copy().setDuring(half);
-            states.init.push(plane);
+            const hold = forward[time % forward.length];
+            paths.add(hold.element);
+            const plane = new MotionPlane().setDuring(half).setPoints(0, 0.5);
+            chain.addPlane(plane.setReferenceId(hold.id));
         }
+        const loop = chain.planes.length;
 
         // repetitive motion
         let index = (time - lag) % forward.length;
@@ -283,30 +395,33 @@ AnimCreator.prototype = {
             const number = prop.numbers[i];
 
             // an orbit from catch to throw
-            let from;
-            if (number == 1 || prev == 1) {
-                if (number == 1) {
-                    from = forward[index].first.copy().setDuring(half);
-                } else {
-                    from = forward[index].second.copy().setDuring(half);
+            const hold = forward[index];
+            const motion = new MotionPlane();
+            let from = hold.last;
+            if (number == 1) {
+                from = hold.middle;
+                if (prev != 1) {
+                    motion.setDuring(half).setPoints(0, 0.5);
                 }
             } else {
-                from = forward[index].total.copy().setDuring(unit);
+                if (prev == 1) {
+                    motion.setDuring(half).setPoints(0.5, 1);
+                } else {
+                    motion.setDuring(this._unit);
+                }
             }
             if (number != 1 || prev != 1) {
-                if (0 < init) {
-                    from.addBegin(init);
-                    init = 0;
-                }
-                states.loop.push(from);
+                paths.add(hold.element);
+                chain.addPlane(motion.setReferenceId(hold.id));
             }
 
             // parabolic orbit from throw to catch
             if (number == 2) {
-                const plane = forward[(index + 1) % forward.length].total.copy().setDuring(unit);
-                states.loop.push(plane);
+                const ret = forward[(index + 1) % forward.length];
+                paths.add(ret.element);
+                const plane = new MotionPlane().setDuring(this._unit);
+                chain.addPlane(plane.setReferenceId(ret.id));
             } else {
-                const abs = Math.abs(number);
                 if (prop.times[i] % 2 == 1) {
                     // when throwing to the opposite hand
                     [ forward, opposite ] = [ opposite, forward ];
@@ -314,452 +429,147 @@ AnimCreator.prototype = {
                         lag = 1 - lag;
                     }
                 }
+                const abs = Math.abs(number);
                 time += abs;
                 index = (time - lag) % forward.length;
-                let to = forward[index].total.copy().setDuring(unit);
+                let to = forward[index].first;
                 if (number == 1) {
-                    to = forward[index].second.copy().setDuring(half);
+                    to = forward[index].middle;
                 }
                 const air = Math.max(1, abs - 1);
                 const height = air * air * 15 / this._scale;
 
-                // animation pair
-                const p1 = { "x": from.x.getLastValue(), "y": from.y.getLastValue() };
-                const p3 = { "x": to.x.getFirstValue(), "y": to.y.getFirstValue() };
-                const p2 = { "x": (p1.x + p3.x) / 2, "y": p1.y - height };
-                const pair = new AnimPair();
-                pair.setDuring(unit * air);
-                pair.setParabola(p1, p2, p3);
-                states.loop.push(pair.total);
+                // animation plane
+                const parabola = new ParabolicPlane().setDuring(this._unit * air);
+                parabola.setValues([ from.x, to.x ], [ from.y, from.y - height, to.y ]);
+                chain.addPlane(parabola);
             }
             prev = number;
         }
-        return states;
-    },
+        return { "chain": chain, "loop": loop, "paths": Array.from(paths) };
+    }},
 
-}
-
-// Animation chain class
-const AnimChain = function(name, x, y) {
-    this.name = name || "";
-    this.x = x || "";
-    this.y = y || "";
-    this._init = null;
-    this._loop = null;
-}
-
-// Animation chain prototype
-AnimChain.prototype = {
-
-    // set the animation planes
-    "setPlanes": function(init, loop) {
-        this._init = this._connectPlanes(init);
-        this._loop = this._connectPlanes(loop);
-        if (this._init == null) {
-            if (this._loop != null) {
-                // repetitive motion only
-                this._loop.setId(this.name).setBegin().addBegin(this._loop);
-            }
-        } else {
-            if (this._loop == null) {
-                // initial operation only
-                this._init.setId(this.name).setBegin();
-            } else {
-                // initial operation and repetitive motion
-                this._init.setId(this.name, 0).setBegin();
-                this._loop.setId(this.name, 1).setBegin(this._init).addBegin(this._loop);
-            }
+    // transpose coordinates
+    "_transpose": { "value": function(points) {
+        const xs = [];
+        const ys = [];
+        if (0 < points.length) {
+            Array.prototype.push.apply(xs, points.map(elem => elem.x))
+            Array.prototype.push.apply(ys, points.map(elem => elem.y))
         }
+        return { "x": xs, "y": ys };
+    }},
+
+});
+AnimCreator.prototype.constructor = AnimCreator;
+
+// Animation plane chain class
+const PlaneChain = function() {
+    this.planes = [];
+    this.begin = 0;
+}
+
+// Animation plane chain prototype
+PlaneChain.prototype = {
+
+    // add an animation plane
+    "addPlane": function(value) {
+        this.planes.push(value);
         return this;
-    },
-
-    // create SVG elements
-    "createElements": function() {
-        const parts = [];
-        if(this._init != null) {
-            parts.push(this._init.createElements());
-        }
-        if(this._loop != null) {
-            parts.push(this._loop.createElements());
-        }
-        return parts.flat();
-    },
-
-    // connect animation planes
-    "_connectPlanes": function(planes) {
-        if (!Array.isArray(planes) || planes.length == 0) {
-            return null;
-        }
-        planes.forEach(elem => elem.setAttribute(this.x, this.y));
-        const copy = planes[0].copy();
-        for (let i = 1; i < planes.length; i++) {
-            copy.addPlane(planes[i].copy());
-        }
-        return copy;
-    },
-
-}
-
-// Animation pair class
-const AnimPair = function() {
-    this.first = new AnimPlane();
-    this.second = new AnimPlane();
-    this.total = new AnimPlane();
-}
-
-// Animation pair prototype
-AnimPair.prototype = {
-
-    // set the duration time (ms)
-    "setDuring": function(value) {
-        const half = value / 2;
-        this.first.setDuring(half);
-        this.second.setDuring(half);
-        this.total.setDuring(value);
-        return this;
-    },
-
-    // set elliptic splines
-    "setEllipse": function(p1, p2, p3) {
-        const accel = new EllipseAccel();
-        const decel = new EllipseDecel();
-        const first = { "x": accel, "y": decel };
-        const second = { "x": decel, "y": accel };
-        this._setSplines(p1, p2, p3, first, second);
-        return this;
-    },
-
-    // set parabolic splines
-    "setParabola": function(p1, p2, p3) {
-        const linear = new LinearSpline();
-        const accel = new ParabolaAccel();
-        const decel = new ParabolaDecel();
-        const first = { "x": linear, "y": decel };
-        const second = { "x": linear, "y": accel };
-        this._setSplines(p1, p2, p3, first, second);
-        return this;
-    },
-
-    // move by the offset
-    "move": function(offset) {
-        this.first.move(offset.x, offset.y);
-        this.second.move(offset.x, offset.y);
-        this.total.move(offset.x, offset.y);
-        return this;
-    },
-
-    // copy this instance
-    "copy": function() {
-        const pair = new AnimPair();
-        pair.first = this.first.copy();
-        pair.second = this.second.copy();
-        pair.total = this.total.copy();
-        return pair;
-    },
-
-    // set the splines
-    "_setSplines": function(p1, p2, p3, first, second) {
-        const linear = new LinearSpline();
-        this.first.setValues([ p1.x, p2.x ], [ p1.y, p2.y ]);
-        this.second.setValues([ p2.x, p3.x ], [ p2.y, p3.y ]);
-        this.total.setValues([ p1.x, p2.x, p3.x ], [ p1.y, p2.y, p3.y ]);
-
-        // first half
-        if (Math.sign(p2.x - p1.x) * Math.sign(p2.y - p1.y) == 0) {
-            // in the case of a straight line
-            this.first.addSpline(linear, linear);
-            this.total.addSpline(linear, linear);
-        } else {
-            // in the case of an arc
-            this.first.addSpline(first.x, first.y);
-            this.total.addSpline(first.x, first.y);
-        }
-
-        // second half
-        if (Math.sign(p3.x - p2.x) * Math.sign(p3.y - p2.y) == 0) {
-            // in the case of a straight line
-            this.second.addSpline(linear, linear);
-            this.total.addSpline(linear, linear);
-        } else {
-            // in the case of an arc
-            this.second.addSpline(second.x, second.y);
-            this.total.addSpline(second.x, second.y);
-        }
-    },
-
-}
-
-// Animation plane class
-const AnimPlane = function(x, y) {
-    this.x = x || new AnimLine();
-    this.y = y || new AnimLine();
-}
-
-// Animation plane prototype
-AnimPlane.prototype = {
-
-    // add another animation plane
-    "addPlane": function(plane) {
-        this.x.addLine(plane.x);
-        this.y.addLine(plane.y);
     },
 
     // set the ID
-    "setId": function(value, postfix) {
-        this.x.setId(value, postfix);
-        this.y.setId(value, postfix);
-        return this;
-    },
-
-    // set the operation attributes
-    "setAttribute": function(x, y) {
-        this.x.setAttribute(x);
-        this.y.setAttribute(y);
-        return this;
-    },
-
-    // set the start timing
-    "setBegin": function(value) {
-        let begin = value;
-        if (begin == null) {
-            const begins = this.getBegins();
-            if (begins.length == 0) {
-                begin = 0;
-            } else {
-                begin = begins[0];
+    "setId": function(value) {
+        if (this.planes.length == 1) {
+            this.planes[0].setId(value);
+        } else {
+            for (let i = 0; i < this.planes.length; i++) {
+                this.planes[i].setId(value, i);
             }
         }
-        this.clearBegins();
-        this.addBegin(begin);
         return this;
     },
 
-    // add the start timing
-    "addBegin": function(value) {
-        if (value instanceof AnimPlane) {
-            this.x.addBegin(value.x);
-            this.y.addBegin(value.y);
-        } else {
-            this.x.addBegin(value);
-            this.y.addBegin(value);
+    // set the chain
+    "setChain": function(loop) {
+        const last = this.planes.length - 1;
+        if (last < 0) {
+            return this;
         }
-        return this;
-    },
+        this.planes[0].addBegin(this.begin);
 
-    // clear the start timing list
-    "clearBegins": function() {
-        this.x.clearBegins();
-        this.y.clearBegins();
-        return this;
-    },
-
-    // get the start timing list
-    "getBegins": function() {
-        const x = this.x.getBegins();
-        if (0 < x.length) {
-            return x;
+        // set the order from the top
+        for (let i = 0; i < last; i++) {
+            this.planes[i + 1].addBegin(this.planes[i]);
         }
-        return this.y.getBegins();
-    },
 
-    // set the duration time (ms)
-    "setDuring": function(value) {
-        this.x.setDuring(value);
-        this.y.setDuring(value);
+        // repeat
+        if (isNaN(loop)) {
+            loop = 0;
+        }
+        this.planes[loop].addBegin(this.planes[last]);
         return this;
-    },
-
-    // set the list of values
-    "setValues": function(xs, ys) {
-        this.x.setValues(xs);
-        this.y.setValues(ys);
-        return this;
-    },
-
-    // add the splines
-    "addSpline": function(x, y) {
-        this.x.addSpline(x);
-        this.y.addSpline(y);
-        return this;
-    },
-
-    // move by the offset
-    "move": function(dx, dy) {
-        this.x.move(dx);
-        this.y.move(dy);
-        return this;
-    },
-
-    // copy this instance
-    "copy": function() {
-        return new AnimPlane(this.x.copy(), this.y.copy());
     },
 
     // create SVG elements
     "createElements": function() {
-        const parts = [];
-        parts.push(this.x.createElements());
-        parts.push(this.y.createElements());
-        return parts.flat();
+        return this.planes.map(elem => elem.createElements()).flat();
     },
 
 }
 
-// Animation line class
-const AnimLine = function() {
-    this._id = "";
-    this._attribute = "";
-    this._begins = [];
-    this._during = 0;
-    this._mode = "spline";
-    this._values = [];
-    this._divisions = [];
-    this._splines = [];
+// Animation part base class
+const PartBase = function(name) {
+    this.name = name || "animate";
+    this.id = "";
+    this.attribute = "";
+    this.begins = [];
+    this.during = 0;
 }
 
-// Animation line prototype
-AnimLine.prototype = {
-
-    // add another animation line
-    "addLine": function(line) {
-        this._during += line.getDuring();
-        Array.prototype.push.apply(this._values, line.getValues().slice(1));
-        Array.prototype.push.apply(this._divisions, line.getDivisions());
-        Array.prototype.push.apply(this._splines, line.getSplines());
-    },
+// Animation part base prototype
+PartBase.prototype = {
 
     // set the ID
     "setId": function(value, postfix) {
         if (postfix == null || postfix === "") {
-            this._id = `${value}_${this._attribute}`;
+            this.id = value;
         } else {
-            this._id = `${value}_${this._attribute}_${postfix}`;
+            this.id = `${value}_${postfix}`;
         }
         return this;
     },
 
     // get the ID
     "getId": function() {
-        return this._id;
-    },
-
-    // set the operation attribute
-    "setAttribute": function(value) {
-        this._attribute = value;
-        return this;
+        return this.id;
     },
 
     // add the start timing
     "addBegin": function(value) {
-        if (this._begins.indexOf(value) < 0) {
-            this._begins.push(value);
+        if (this.begins.indexOf(value) < 0) {
+            this.begins.push(value);
         }
         return this;
-    },
-
-    // clear the start timing list
-    "clearBegins": function() {
-        this._begins = [];
-        return this;
-    },
-
-    // get the start timing list
-    "getBegins": function() {
-        return this._begins;
     },
 
     // set the duration time (ms)
     "setDuring": function(value) {
-        if (isNaN(value)) {
+        if (isNaN(value) || value < 0) {
             value = 0;
         }
-        const before = this._during;
-        this._during = value;
-        if (before == 0) {
-            this._divideTime();
-        } else {
-            const scale = value / before;
-            this._divisions = this._divisions.map(elem => elem * scale);
-        }
+        this.during = value;
         return this;
-    },
-
-    // get the duration time (ms)
-    "getDuring": function() {
-        return this._during;
-    },
-
-    // set the list of values
-    "setValues": function(values) {
-        if (!Array.isArray(values)) {
-            return this;
-        }
-        this._values = [];
-        Array.prototype.push.apply(this._values, values.filter(elem => !isNaN(elem)));
-        this._divideTime();
-        return this;
-    },
-
-    // get the list of values
-    "getValues": function() {
-        return this._values;
-    },
-
-    // get the first value
-    "getFirstValue": function() {
-        return this._values[0];
-    },
-
-    // get the last value
-    "getLastValue": function() {
-        return this._values[this._values.length - 1];
-    },
-
-    // get a time division list
-    "getDivisions": function() {
-        return this._divisions;
-    },
-
-    // add the splines
-    "addSpline": function(value) {
-        if (!(value instanceof SplineBase)) {
-            return this;
-        }
-        this._splines.push(value);
-        return this;
-    },
-
-    // get the splines
-    "getSplines": function() {
-        return this._splines;
-    },
-
-    // move by the offset
-    "move": function(value) {
-        this._values = this._values.map(elem => elem + value);
-        return this;
-    },
-
-    // copy this instance
-    "copy": function() {
-        const copy = new AnimLine();
-        copy.setAttribute(this._attribute);
-        this._begins.forEach(copy.addBegin, copy);
-        copy.setDuring(this._during);
-        copy.setValues(this._values);
-        this._splines.forEach(copy.addSpline, copy);
-        return copy;
     },
 
     // create SVG elements
     "createElements": function() {
         // start timing
         const begins = [];
-        for (const element of this._begins) {
+        for (const element of this.begins) {
             if (isNaN(element)) {
-                const id = element.getId();
-                if (id != "") {
-                    begins.push(`${id}.end`);
+                if (typeof element.getId === "function") {
+                    begins.push(`${element.getId()}.end`);
                 } else {
                     begins.push(element);
                 }
@@ -768,36 +578,17 @@ AnimLine.prototype = {
             }
         }
 
-        // get the number of divisions
-        const total = this._divisions.reduce((acc, cur) => acc + cur, 0);
-        let sum = 0;
-        const times = [ 0 ];
-        for (const division of this._divisions) {
-            sum += division;
-            times.push(sum / total);
-        }
-
         // create an animation element
-        const element = document.createElementNS("http://www.w3.org/2000/svg", "animate");
-        element.setAttribute("id", this._id);
-        element.setAttribute("attributeName", this._attribute);
-        element.setAttribute("begin", begins.join(";"));
-        element.setAttribute("dur", this._getTime(this._during));
-        element.setAttribute("calcMode", this._mode);
-        element.setAttribute("values", this._values.join(";"));
-        element.setAttribute("keyTimes", times.join(";"));
-        element.setAttribute("keySplines", this._splines.map(elem => elem.createText()).join(";"));
-        return element;
-    },
-
-    // divide time
-    "_divideTime": function() {
-        const count = this._values.length - 1;
-        if (count < 1) {
-            this._divisions = [];
-        } else {
-            this._divisions = new Array(count).fill(this._during / count);
+        const element = document.createElementNS("http://www.w3.org/2000/svg", this.name);
+        if (this.id) {
+            element.setAttribute("id", this.id);
         }
+        if (this.attribute) {
+            element.setAttribute("attributeName", this.attribute);
+        }
+        element.setAttribute("begin", begins.join(";"));
+        element.setAttribute("dur", this._getTime(this.during));
+        return element;
     },
 
     // get a time string
@@ -807,60 +598,220 @@ AnimLine.prototype = {
 
 }
 
-// Spline base class
-const SplineBase = function(p1, p2) {
-    this.values = [ p1 || 0, p2 || 0 ];
+// Halt part class
+const HaltPart = function() {
+    PartBase.call(this, "set");
+    this.to = 0;
 }
 
-// Spline base prototype
-SplineBase.prototype = {
+// Halt part prototype
+HaltPart.prototype = Object.create(PartBase.prototype, {
 
-    // create text
-    "createText": function() {
-        const points = [];
-        const length = this.values.length;
-        for (let i = 0; i < length; i++) {
-            points.push(`${(i + 1) / (length + 1)},${this.values[i]}`);
+    // set the value
+    "setTo": { "value": function(value) {
+        if (isNaN(value)) {
+            value = 0;
         }
-        return points.join(" ");
+        this.to = value;
+        return this;
+    }},
+
+    // create SVG elements
+    "createElements": { "value": function() {
+        const element = PartBase.prototype.createElements.call(this);
+        element.setAttribute("to", this.to);
+        return element;
+    }},
+
+});
+HaltPart.prototype.constructor = HaltPart;
+
+// Value part class
+const ValuePart = function() {
+    PartBase.call(this);
+    this.values = [];
+}
+
+// Value part prototype
+ValuePart.prototype = Object.create(PartBase.prototype, {
+
+    // set the list of values
+    "setValues": { "value": function(values) {
+        this.values = [];
+        if (!Array.isArray(values)) {
+            return this;
+        }
+        Array.prototype.push.apply(this.values, values.filter(elem => !isNaN(elem)));
+        return this;
+    }},
+
+    // create SVG elements
+    "createElements": { "value": function() {
+        const element = PartBase.prototype.createElements.call(this);
+        element.setAttribute("values", this.values.join(";"));
+        return element;
+    }},
+
+});
+ValuePart.prototype.constructor = ValuePart;
+
+// Parabolic part class
+const ParabolicPart = function() {
+    ValuePart.call(this);
+}
+
+// Parabolic part prototype
+ParabolicPart.prototype = Object.create(ValuePart.prototype, {
+
+    // create SVG elements
+    "createElements": { "value": function() {
+        const element = PartBase.prototype.createElements.call(this);
+        element.setAttribute("calcMode", "spline");
+        element.setAttribute("values", this.values.join(";"));
+        element.setAttribute("keyTimes", "0;0.5;1");
+        element.setAttribute("keySplines", "0.33,0.67 0.67,1;0.33,0 0.67,0.33");
+        return element;
+    }},
+
+});
+ParabolicPart.prototype.constructor = ParabolicPart;
+
+// Animation plane base class
+const PlaneBase = function(x, y) {
+    this.x = x;
+    this.y = y;
+}
+
+// Animation plane base prototype
+PlaneBase.prototype = {
+
+    // set the ID
+    "setId": function(value, postfix) {
+        this.x.setId(value, postfix);
+        return this;
+    },
+
+    // get the ID
+    "getId": function() {
+        return this.x.getId();
+    },
+
+    // set the operation attribute
+    "setAttribute": function(x, y) {
+        this.x.attribute = x;
+        this.y.attribute = y;
+        return this;
+    },
+
+    // add the start timing
+    "addBegin": function(value) {
+        this.x.addBegin(value);
+        this.y.addBegin(value);
+        return this;
+    },
+
+    // set the duration time (ms)
+    "setDuring": function(value) {
+        this.x.setDuring(value);
+        this.y.setDuring(value);
+        return this;
+    },
+
+    // create SVG elements
+    "createElements": function() {
+        return [ this.x.createElements(), this.y.createElements() ].flat();
     },
 
 }
 
-// Linear spline class
-const LinearSpline = function() {
-    SplineBase.call(this, 1 / 3, 2 / 3);
+// Halt plane class
+const HaltPlane = function() {
+    PlaneBase.call(this, new HaltPart(), new HaltPart());
+    this.setAttribute("x", "y");
 }
-LinearSpline.prototype = Object.create(SplineBase.prototype);
-LinearSpline.prototype.constructor = LinearSpline;
 
-// Parabolic acceleration spline class
-const ParabolaAccel = function() {
-    SplineBase.call(this, 0, 1 / 3);
-}
-ParabolaAccel.prototype = Object.create(SplineBase.prototype);
-ParabolaAccel.prototype.constructor = ParabolaAccel;
+// Halt plane prototype
+HaltPlane.prototype = Object.create(PlaneBase.prototype, {
 
-// Parabolic reduction spline class
-const ParabolaDecel = function() {
-    SplineBase.call(this, 2 / 3, 1);
-}
-ParabolaDecel.prototype = Object.create(SplineBase.prototype);
-ParabolaDecel.prototype.constructor = ParabolaDecel;
+    // set the value
+    "setTo": { "value": function(value) {
+        this.x.setTo(value.x);
+        this.y.setTo(value.y);
+        return this;
+    }},
 
-// Elliptic acceleration spline class
-const EllipseAccel = function() {
-    const factor = (Math.sqrt(2) - 1) * 4 / 3;
-    SplineBase.call(this, 0, 1 - factor);
-}
-EllipseAccel.prototype = Object.create(SplineBase.prototype);
-EllipseAccel.prototype.constructor = EllipseAccel;
+});
+HaltPlane.prototype.constructor = HaltPlane;
 
-// Elliptic reduction spline class
-const EllipseDecel = function() {
-    const factor = (Math.sqrt(2) - 1) * 4 / 3;
-    SplineBase.call(this, factor, 1);
+// Numeric plane class
+const NumericPlane = function(x, y) {
+    PlaneBase.call(this, x || new ValuePart(), y || new ValuePart());
 }
-EllipseDecel.prototype = Object.create(SplineBase.prototype);
-EllipseDecel.prototype.constructor = EllipseDecel;
+
+// Numeric plane prototype
+NumericPlane.prototype = Object.create(PlaneBase.prototype, {
+
+    // set the list of values
+    "setValues": { "value": function(xs, ys) {
+        this.x.setValues(xs);
+        this.y.setValues(ys);
+        return this;
+    }},
+
+});
+NumericPlane.prototype.constructor = NumericPlane;
+
+// Parabolic plane class
+const ParabolicPlane = function() {
+    NumericPlane.call(this, new ValuePart(), new ParabolicPart());
+    this.setAttribute("x", "y");
+}
+ParabolicPlane.prototype = Object.create(NumericPlane.prototype);
+ParabolicPlane.prototype.constructor = ParabolicPlane;
+
+// Motion plane class
+const MotionPlane = function() {
+    PartBase.call(this, "animateMotion");
+    this.href = "";
+    this.points = [];
+}
+
+// Motion plane prototype
+MotionPlane.prototype = Object.create(PartBase.prototype, {
+
+    // set the reference ID
+    "setReferenceId": { "value": function(value) {
+        this.href = value;
+        return this;
+    }},
+
+    // set the portion to be used
+    "setPoints": { "value": function(...values) {
+        this.points = [];
+        Array.prototype.push.apply(this.points, values);
+        return this;
+    }},
+
+    // create SVG elements
+    "createElements": { "value": function() {
+        const element = PartBase.prototype.createElements.call(this);
+        const count = this.points.length - 1;
+        if (0 < count) {
+            // if the part to be used is specified
+            const times = [];
+            for (let i = 0; i < count; i++) {
+                times.push(i / count);
+            }
+            times.push(1);
+            element.setAttribute("keyTimes", times.join(";"));
+            element.setAttribute("keyPoints", this.points.join(";"));
+        }
+        const mpath = document.createElementNS(element.namespaseURI, "mpath");
+        mpath.setAttribute("href", `#${this.href}`);
+        element.appendChild(mpath);
+        return element;
+    }},
+
+});
+MotionPlane.prototype.constructor = MotionPlane;
 

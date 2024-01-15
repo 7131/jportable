@@ -12,7 +12,8 @@ Controller.prototype = {
 
         // elements
         this._animation = document.getElementById("animation");
-        this._svg = this._animation.innerHTML;
+        this._svgSource = this._animation.innerHTML;
+        this._parent = document.createElement("div");
         this._sourceArea = document.getElementById("source");
         const createButton = document.getElementById("create");
         const clipboardButton = document.getElementById("clipboard");
@@ -31,16 +32,19 @@ Controller.prototype = {
         }
     },
 
-    // create an SVG images
+    // create an SVG image
     "_create": function(e) {
         // get the input value
+        const text = document.getElementById("pattern").value;
         const message = document.getElementById("message");
         message.innerHTML = "";
-        this._animation.innerHTML = this._svg;
+        this._animation.innerHTML = this._svgSource;
         this._sourceArea.innerHTML = "";
-        const text = document.getElementById("pattern").value;
-        if (!text) {
-            // pattern is not specified
+
+        // create an SVG element
+        this._parent.innerHTML = this._svgSource;
+        const svg = this._parent.querySelector("svg");
+        if (!svg || !text) {
             message.innerHTML = "No data for animation.";
             return;
         }
@@ -52,17 +56,26 @@ Controller.prototype = {
             return;
         }
 
+        // set to SVG
+        svg.id = `pattern_${result.text}`;
+        svg.setAttribute("xmlns", svg.namespaceURI);
+        const core = new SvgCore(svg);
+        this._creator.setId(svg.id);
+        const motions = [ this._creator.paths.right, this._creator.paths.left ].flat();
+        motions.forEach(elem => core.defs.appendChild(elem[0]));
+
         // set the animation
         const table = jmotion.Siteswap.separate(result.throws, result.synch);
-        const chain = this._creator.calculateChain(table, result.synch);
-        this._core = new SvgCore(this._createSvg(result.text));
-        this._core.animate(chain);
+        const orbits = this._creator.calculateOrbits(table, result.synch);
+        core.animate(orbits);
+        core.setScale(this._creator.getScale());
+        core.setStyle({ "stroke-width": this._creator.getWidth() });
 
         // show
-        this._animation.innerHTML = "";
-        this._animation.appendChild(this._core.svg);
-        const xml = this._core.svg.outerHTML.replace(/<\/\w+>/g, "$&\n").replace(/><([^\/])/g, ">\n<$1");
-        this._sourceArea.appendChild(document.createTextNode(xml));
+        this._animation.innerHTML = svg.outerHTML;
+        const xml = svg.outerHTML.replace(/>\s+/g, ">");
+        const arrange = xml.replace(/<\/\w+>/g, "$&\n").replace(/><([^\/])/g, ">\n<$1");
+        this._sourceArea.appendChild(document.createTextNode(arrange));
     },
 
     // copy to clipboard
@@ -72,7 +85,7 @@ Controller.prototype = {
 
     // download as file
     "_download": function(e) {
-        if (!this._core) {
+        if (!this._animation.firstChild) {
             // no source code
             return;
         }
@@ -84,18 +97,9 @@ Controller.prototype = {
         // link for download
         const link = document.createElement("a");
         link.href = url;
-        link.download = `${this._core.svg.id}.svg`;
+        link.download = `${this._animation.firstChild.id}.svg`;
         link.click();
         URL.revokeObjectURL(url);
-    },
-
-    // create an SVG element
-    "_createSvg": function(pattern) {
-        const namespace = "http://www.w3.org/2000/svg";
-        const element = document.createElementNS(namespace, "svg");
-        element.id = `pattern_${pattern}`;
-        element.setAttribute("xmlns", namespace);
-        return element;
     },
 
 }

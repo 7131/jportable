@@ -8,7 +8,6 @@ const ColNum = {
 
 // Controller class
 const Controller = function() {
-    this.namespace = "http://www.w3.org/2000/svg";
     window.addEventListener("load", this._initialize.bind(this), false);
 }
 
@@ -19,8 +18,8 @@ Controller.prototype = {
     "_initialize": function(e) {
         // fields
         this._creator = new AnimCreator();
-        this._svg = document.createElementNS(this.namespace, "svg");
-        this._svg.setAttribute("xmlns", this.namespace);
+        this._svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        this._svg.setAttribute("xmlns", this._svg.namespaceURI);
 
         // row data
         this._rows = document.getElementById("patterns").rows;
@@ -34,6 +33,7 @@ Controller.prototype = {
     // set row data
     "_setRowData": function(rows) {
         if (rows.length <= 1) {
+            // header only
             return;
         }
         for (let i = 1; i < rows.length; i++) {
@@ -160,7 +160,7 @@ Controller.prototype = {
         if (errors.length == 0) {
             last.innerText = "All OK";
         } else {
-            last.innerText = "NG : " + errors.join();
+            last.innerText = `NG : ${errors.join()}`;
             last.classList.add("error");
         }
         e.currentTarget.disabled = false;
@@ -175,19 +175,26 @@ Controller.prototype = {
             return "";
         }
 
-        // execute
-        const result = jmotion.Siteswap.analyze(target);
-        const table = jmotion.Siteswap.separate(result.throws, result.synch);
-        const chain = this._creator.calculateChain(table, result.synch);
-
-        // set to SVG
+        // SVG initialization
         const escape = encodeURIComponent(target).replace(/%/g, ":");
         const text = escape.replace(/[!~*'\(\)]/g, this._replacer);
         this._svg.id = `test_${text}`;
         this._svg.innerHTML = "";
         const core = new SvgCore(this._svg);
-        core.animate(chain);
-        const actual = core.svg.outerHTML;
+        this._creator.setId(this._svg.id);
+        const motions = [ this._creator.paths.right, this._creator.paths.left ].flat();
+        motions.forEach(elem => core.defs.appendChild(elem[0]));
+
+        // execute
+        const result = jmotion.Siteswap.analyze(target);
+        const table = jmotion.Siteswap.separate(result.throws, result.synch);
+        const orbits = this._creator.calculateOrbits(table, result.synch);
+
+        // set to SVG
+        core.animate(orbits);
+        core.setScale(this._creator.getScale());
+        core.setStyle({ "stroke-width": this._creator.getWidth() });
+        const actual = this._svg.outerHTML;
         if (actual == expect) {
             return "";
         } else {
@@ -195,7 +202,7 @@ Controller.prototype = {
         }
     },
 
-    // replace symbols with character codes.
+    // replace symbols with character codes
     "_replacer": function(match) {
         let hex = match.charCodeAt(0).toString(16);
         if (hex.length % 2 == 1) {
