@@ -1,6 +1,6 @@
 // Controller class
 const Controller = function() {
-    window.addEventListener("load", this._initialize.bind(this), false);
+    window.addEventListener("load", this._initialize.bind(this));
 }
 
 // Controller prototype
@@ -20,9 +20,9 @@ Controller.prototype = {
         const downloadButton = document.getElementById("download");
 
         // events
-        createButton.addEventListener("click", this._create.bind(this), false);
-        clipboardButton.addEventListener("click", this._copy.bind(this), false);
-        downloadButton.addEventListener("click", this._download.bind(this), false);
+        createButton.addEventListener("click", this._create.bind(this));
+        clipboardButton.addEventListener("click", this._copy.bind(this));
+        downloadButton.addEventListener("click", this._download.bind(this));
 
         // get the query string
         const params = new URLSearchParams(window.location.search);

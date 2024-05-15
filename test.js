@@ -8,7 +8,7 @@ const ColNum = {
 
 // Controller class
 const Controller = function() {
-    window.addEventListener("load", this._initialize.bind(this), false);
+    window.addEventListener("load", this._initialize.bind(this));
 }
 
 // Controller prototype
@@ -27,7 +27,7 @@ Controller.prototype = {
 
         // button
         const execute = document.getElementById("execute");
-        execute.addEventListener("click", this._start.bind(this), false);
+        execute.addEventListener("click", this._start.bind(this));
     },
 
     // set row data
@@ -88,7 +88,7 @@ Controller.prototype = {
         const check = document.createElement("input");
         check.setAttribute("type", "checkbox");
         check.setAttribute("id", id);
-        check.addEventListener("click", this._toggleExpected.bind(this), false);
+        check.addEventListener("click", this._toggleExpected.bind(this));
         cell.appendChild(check);
 
         // label
