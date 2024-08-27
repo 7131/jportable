@@ -1,12 +1,6 @@
 // SVG core class
 const SvgCore = function(svg) {
     jmotion.Core.call(this, svg);
-
-    // graphic elements
-    const right = this._getElements(this.back, "line", "_right");
-    const left = this._getElements(this.back, "line", "_left");
-    this.setArms([ right, left ]);
-    this.setHands(this._getElements(this.front, "use", "_hand"));
 }
 
 // SVG core prototype

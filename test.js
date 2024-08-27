@@ -177,7 +177,7 @@ Controller.prototype = {
 
         // SVG initialization
         const escape = encodeURIComponent(target).replace(/%/g, ":");
-        const text = escape.replace(/[!~*'\(\)]/g, this._replacer);
+        const text = escape.replace(/[!~*'\(\)]/g, this._replacer).toLowerCase();
         this._svg.id = `test_${text}`;
         this._svg.innerHTML = "";
         const core = new SvgCore(this._svg);
