@@ -1,24 +1,38 @@
 # Juggling Simulator Portable Images
 
+https://7131.github.io/jportable/
+
 If a siteswap pattern is specified, the SVG animation is generated using [jmotion](https://github.com/7131/jmotion)&apos;s default simulator.
-The animation can be saved as a standalone file, embedded in HTML as an &lt;svg&gt; tag, or referenced from an &lt;img&gt; tag.
+This application accepts vanilla, multiplex, and synchronous patterns.
 
-# File list
+There are already simulators that output GIF animations, but this may be the first simulator that outputs SVG animations.
+File sizes are sometimes larger for GIFs and sometimes larger for SVGs.
 
-<dl>
-  <dt>index.html</dt>
-    <dd>This is the main page of Juggling Simulator Portable Images.</dd>
-  <dt>default.css</dt>
-    <dd>The style sheet for the main page.</dd>
-  <dt>animation.js</dt>
-    <dd>Classes that generate SVG animations using jmotion&apos;s default images.</dd>
-  <dt>controller.js</dt>
-    <dd>A controller that receives input from the main page and outputs the generated results.</dd>
-  <dt>test.html</dt>
-    <dd>This is a page for testing this service.</dd>
-  <dt>test.css</dt>
-    <dd>The style sheet for the test page.</dd>
-  <dt>test.js</dt>
-    <dd>A controller that receives the input of the test page and outputs the test result to the table.</dd>
-</dl>
+Since SVG animations are simply text files, they have the advantage that they can be manually modified after file output.
+On the other hand, displaying SVG animations on smartphones and other devices may require a dedicated application.
 
+# How to use
+
+You can copy the SVG source code displayed on the page and paste it into the &lt;body&gt; tag of your HTML file.
+
+```HTML
+<body>
+<svg id="pattern_3" xmlns="http://www.w3.org/2000/svg" viewBox="-150 -255 300 300">
+...
+</svg>
+</body>
+```
+
+Or you can download it as a file (e.g. pattern_3.svg) and refer to it from the &lt;img&gt; tag.
+
+```HTML
+<body>
+<img src="./pattern_3.svg">
+</body>
+```
+
+This application also accepts URL parameters.
+? followed by a valid siteswap, the page will be displayed with that animation generated.
+The following example specifies 441.
+
+https://7131.github.io/jportable/?441
