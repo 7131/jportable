@@ -229,9 +229,9 @@ AnimCreator.prototype = Object.create(jmotion.BasicCreator.prototype, {
     }},
 
     // calculate orbits
-    "calculateOrbits": { "value": function(table, synch) {
+    "calculateOrbits": { "value": function(table, sync) {
         // get a list of coordinates
-        const orbits = jmotion.BasicCreator.prototype.calculateOrbits.call(this, table, synch);
+        const orbits = jmotion.BasicCreator.prototype.calculateOrbits.call(this, table, sync);
         this._scale = this.getScale();
         const max = this._scale * 4 + 1;
         const div = Math.round(120 / (max + 5));
@@ -242,13 +242,13 @@ AnimCreator.prototype = Object.create(jmotion.BasicCreator.prototype, {
         const arms = this._getArms(points);
         const hands = [];
         hands.push(this._getHand(this.paths.right, false));
-        hands.push(this._getHand(this.paths.left, !synch, points[1][0].loop[0]));
+        hands.push(this._getHand(this.paths.left, !sync, points[1][0].loop[0]));
 
         // orbit of each prop
         const holds = this._createHolds(arms.map(elem => elem[0]));
         const props = [];
         for (const prop of table) {
-            props.push(this._getProp(prop, holds[0], holds[1], synch));
+            props.push(this._getProp(prop, holds[0], holds[1], sync));
         }
         return { "arms": arms, "hands": hands, "props": props };
     }},
@@ -348,7 +348,7 @@ AnimCreator.prototype = Object.create(jmotion.BasicCreator.prototype, {
     }},
 
     // get the prop orbits
-    "_getProp": { "value": function(prop, forward, opposite, synch) {
+    "_getProp": { "value": function(prop, forward, opposite, sync) {
         const chain = new PlaneChain();
         const paths = new Set();
         const half = this._unit / 2;
@@ -357,7 +357,7 @@ AnimCreator.prototype = Object.create(jmotion.BasicCreator.prototype, {
         let lag = prop.start % 2;
         if (lag == 1) {
             [ forward, opposite ] = [ opposite, forward ];
-            if (!synch) {
+            if (!sync) {
                 // there is a delay in start
                 const halt = new HaltPlane().setDuring(this._unit);
                 chain.addPlane(halt.setTo(forward[0].first));
@@ -419,7 +419,7 @@ AnimCreator.prototype = Object.create(jmotion.BasicCreator.prototype, {
                 if (prop.times[i] % 2 == 1) {
                     // when throwing to the opposite hand
                     [ forward, opposite ] = [ opposite, forward ];
-                    if (!synch) {
+                    if (!sync) {
                         lag = 1 - lag;
                     }
                 }

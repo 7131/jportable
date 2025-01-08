@@ -187,8 +187,8 @@ Controller.prototype = {
 
         // execute
         const result = jmotion.Siteswap.analyze(target);
-        const table = jmotion.Siteswap.separate(result.throws, result.synch);
-        const orbits = this._creator.calculateOrbits(table, result.synch);
+        const table = jmotion.Siteswap.separate(result.throws, result.sync);
+        const orbits = this._creator.calculateOrbits(table, result.sync);
 
         // set to SVG
         core.animate(orbits);

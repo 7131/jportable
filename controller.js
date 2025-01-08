@@ -65,8 +65,8 @@ Controller.prototype = {
         motions.forEach(elem => core.defs.appendChild(elem[0]));
 
         // set the animation
-        const table = jmotion.Siteswap.separate(result.throws, result.synch);
-        const orbits = this._creator.calculateOrbits(table, result.synch);
+        const table = jmotion.Siteswap.separate(result.throws, result.sync);
+        const orbits = this._creator.calculateOrbits(table, result.sync);
         core.animate(orbits);
         core.setScale(this._creator.getScale());
         core.setStyle({ "stroke-width": this._creator.getWidth() });
