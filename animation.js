@@ -6,6 +6,9 @@ const SvgCore = function(svg) {
 // SVG core prototype
 SvgCore.prototype = Object.create(jmotion.Core.prototype, {
 
+    // constructor
+    "constructor": { "value": SvgCore },
+
     // set body elements
     "setBody": { "value": function(elements, append, layer) {
         jmotion.Core.prototype.setBody.call(this, elements, append, layer);
@@ -201,7 +204,6 @@ SvgCore.prototype = Object.create(jmotion.Core.prototype, {
     }},
 
 });
-SvgCore.prototype.constructor = SvgCore;
 
 // Animation creator class
 const AnimCreator = function() {
@@ -214,6 +216,9 @@ const AnimCreator = function() {
 
 // Animation creator prototype
 AnimCreator.prototype = Object.create(jmotion.BasicCreator.prototype, {
+
+    // constructor
+    "constructor": { "value": AnimCreator },
 
     // set the ID
     "setId": { "value": function(value) {
@@ -455,7 +460,6 @@ AnimCreator.prototype = Object.create(jmotion.BasicCreator.prototype, {
     }},
 
 });
-AnimCreator.prototype.constructor = AnimCreator;
 
 // Animation plane chain class
 const PlaneChain = function() {
@@ -601,6 +605,9 @@ const HaltPart = function() {
 // Halt part prototype
 HaltPart.prototype = Object.create(PartBase.prototype, {
 
+    // constructor
+    "constructor": { "value": HaltPart },
+
     // set the value
     "setTo": { "value": function(value) {
         if (isNaN(value)) {
@@ -618,7 +625,6 @@ HaltPart.prototype = Object.create(PartBase.prototype, {
     }},
 
 });
-HaltPart.prototype.constructor = HaltPart;
 
 // Value part class
 const ValuePart = function() {
@@ -628,6 +634,9 @@ const ValuePart = function() {
 
 // Value part prototype
 ValuePart.prototype = Object.create(PartBase.prototype, {
+
+    // constructor
+    "constructor": { "value": ValuePart },
 
     // set the list of values
     "setValues": { "value": function(values) {
@@ -647,7 +656,6 @@ ValuePart.prototype = Object.create(PartBase.prototype, {
     }},
 
 });
-ValuePart.prototype.constructor = ValuePart;
 
 // Parabolic part class
 const ParabolicPart = function() {
@@ -656,6 +664,9 @@ const ParabolicPart = function() {
 
 // Parabolic part prototype
 ParabolicPart.prototype = Object.create(ValuePart.prototype, {
+
+    // constructor
+    "constructor": { "value": ParabolicPart },
 
     // create SVG elements
     "createElements": { "value": function() {
@@ -668,7 +679,6 @@ ParabolicPart.prototype = Object.create(ValuePart.prototype, {
     }},
 
 });
-ParabolicPart.prototype.constructor = ParabolicPart;
 
 // Animation plane base class
 const PlaneBase = function(x, y) {
@@ -727,6 +737,9 @@ const HaltPlane = function() {
 // Halt plane prototype
 HaltPlane.prototype = Object.create(PlaneBase.prototype, {
 
+    // constructor
+    "constructor": { "value": HaltPlane },
+
     // set the value
     "setTo": { "value": function(value) {
         this.x.setTo(value.x);
@@ -735,7 +748,6 @@ HaltPlane.prototype = Object.create(PlaneBase.prototype, {
     }},
 
 });
-HaltPlane.prototype.constructor = HaltPlane;
 
 // Numeric plane class
 const NumericPlane = function(x, y) {
@@ -745,6 +757,9 @@ const NumericPlane = function(x, y) {
 // Numeric plane prototype
 NumericPlane.prototype = Object.create(PlaneBase.prototype, {
 
+    // constructor
+    "constructor": { "value": NumericPlane },
+
     // set the list of values
     "setValues": { "value": function(xs, ys) {
         this.x.setValues(xs);
@@ -753,15 +768,20 @@ NumericPlane.prototype = Object.create(PlaneBase.prototype, {
     }},
 
 });
-NumericPlane.prototype.constructor = NumericPlane;
 
 // Parabolic plane class
 const ParabolicPlane = function() {
     NumericPlane.call(this, new ValuePart(), new ParabolicPart());
     this.setAttribute("x", "y");
 }
-ParabolicPlane.prototype = Object.create(NumericPlane.prototype);
-ParabolicPlane.prototype.constructor = ParabolicPlane;
+
+// Parabolic plane prototype
+ParabolicPlane.prototype = Object.create(NumericPlane.prototype, {
+
+    // constructor
+    "constructor": { "value": ParabolicPlane },
+
+});
 
 // Motion plane class
 const MotionPlane = function() {
@@ -772,6 +792,9 @@ const MotionPlane = function() {
 
 // Motion plane prototype
 MotionPlane.prototype = Object.create(PartBase.prototype, {
+
+    // constructor
+    "constructor": { "value": MotionPlane },
 
     // set the reference ID
     "setReferenceId": { "value": function(value) {
@@ -807,5 +830,4 @@ MotionPlane.prototype = Object.create(PartBase.prototype, {
     }},
 
 });
-MotionPlane.prototype.constructor = MotionPlane;
 
