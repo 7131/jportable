@@ -17,11 +17,7 @@ SvgCore.prototype = Object.create(jmotion.Core.prototype, {
         }
 
         // set the ID
-        for (const element of elements) {
-            if (element.id) {
-                element.id = this._getId(element.id);
-            }
-        }
+        elements.filter(elem => elem.id).forEach(elem => elem.id = this._getId(elem.id));
     }},
 
     // set arm elements
@@ -136,11 +132,8 @@ SvgCore.prototype = Object.create(jmotion.Core.prototype, {
     // get the graphic elements
     "_getElements": { "value": function(layer, type, key) {
         const elements = [];
-        for (const element of layer.getElementsByTagName(type)) {
-            if (0 <= element.id.indexOf(key)) {
-                elements.push(element);
-            }
-        }
+        const selection = Array.from(layer.getElementsByTagName(type));
+        selection.filter(elem => 0 <= elem.id.indexOf(key)).forEach(elem => elements.push(elem));
         return elements;
     }},
 
@@ -186,9 +179,7 @@ SvgCore.prototype = Object.create(jmotion.Core.prototype, {
 
     // add animation elements
     "_appendAnimation": { "value": function(parent, ...chains) {
-        for (const chain of chains) {
-            chain.createElements().forEach(parent.appendChild, parent);
-        }
+        chains.forEach(elem => elem.createElements().forEach(parent.appendChild, parent));
     }},
 
     // compare elements
@@ -252,9 +243,7 @@ AnimCreator.prototype = Object.create(jmotion.BasicCreator.prototype, {
         // orbit of each prop
         const holds = this._createHolds(arms.map(elem => elem[0]));
         const props = [];
-        for (const prop of table) {
-            props.push(this._getProp(prop, holds[0], holds[1], sync));
-        }
+        table.forEach(elem => props.push(this._getProp(elem, holds[0], holds[1], sync)));
         return { "arms": arms, "hands": hands, "props": props };
     }},
 
