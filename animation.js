@@ -27,7 +27,7 @@ SvgCore.prototype = Object.create(jmotion.Core.prototype, {
         if (!Array.isArray(arms)) {
             return;
         }
-        Array.prototype.push.apply(this._arms, arms);
+        this._arms = arms;
 
         // set the ID
         const names = this._getNames(this._arms.length);
@@ -45,7 +45,7 @@ SvgCore.prototype = Object.create(jmotion.Core.prototype, {
         if (!Array.isArray(elements)) {
             return;
         }
-        Array.prototype.push.apply(this._hands, elements);
+        this._hands = elements;
         for (const hand of this._hands) {
             hand.removeAttribute("x");
             hand.removeAttribute("y");
@@ -439,13 +439,7 @@ AnimCreator.prototype = Object.create(jmotion.BasicCreator.prototype, {
 
     // transpose coordinates
     "_transpose": { "value": function(points) {
-        const xs = [];
-        const ys = [];
-        if (0 < points.length) {
-            Array.prototype.push.apply(xs, points.map(elem => elem.x))
-            Array.prototype.push.apply(ys, points.map(elem => elem.y))
-        }
-        return { "x": xs, "y": ys };
+        return { "x": points.map(elem => elem.x), "y": points.map(elem => elem.y) };
     }},
 
 });
@@ -633,7 +627,7 @@ ValuePart.prototype = Object.create(PartBase.prototype, {
         if (!Array.isArray(values)) {
             return this;
         }
-        Array.prototype.push.apply(this.values, values.filter(elem => !isNaN(elem)));
+        this.values = values.filter(elem => !isNaN(elem));
         return this;
     }},
 
@@ -793,8 +787,7 @@ MotionPlane.prototype = Object.create(PartBase.prototype, {
 
     // set the portion to be used
     "setPoints": { "value": function(...values) {
-        this.points = [];
-        Array.prototype.push.apply(this.points, values);
+        this.points = values;
         return this;
     }},
 
