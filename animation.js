@@ -131,10 +131,7 @@ SvgCore.prototype = Object.create(jmotion.Core.prototype, {
 
     // get the graphic elements
     "_getElements": { "value": function(layer, type, key) {
-        const elements = [];
-        const selection = Array.from(layer.getElementsByTagName(type));
-        selection.filter(elem => 0 <= elem.id.indexOf(key)).forEach(elem => elements.push(elem));
-        return elements;
+        return Array.from(layer.getElementsByTagName(type)).filter(elem => 0 <= elem.id.indexOf(key));
     }},
 
     // get a list of names
@@ -147,11 +144,7 @@ SvgCore.prototype = Object.create(jmotion.Core.prototype, {
                 return [ "right", "left" ];
 
             default:
-                const names = [];
-                for (let i = 0; i < count; i++) {
-                    names.push(i);
-                }
-                return names;
+                return new Array(count).fill().map((val, idx) => idx);
         }
     }},
 
@@ -242,8 +235,7 @@ AnimCreator.prototype = Object.create(jmotion.BasicCreator.prototype, {
 
         // orbit of each prop
         const holds = this._createHolds(arms.map(elem => elem[0]));
-        const props = [];
-        table.forEach(elem => props.push(this._getProp(elem, holds[0], holds[1], sync)));
+        const props = table.map(elem => this._getProp(elem, holds[0], holds[1], sync));
         return { "arms": arms, "hands": hands, "props": props };
     }},
 
@@ -797,11 +789,7 @@ MotionPlane.prototype = Object.create(PartBase.prototype, {
         const count = this.points.length - 1;
         if (0 < count) {
             // if the part to be used is specified
-            const times = [];
-            for (let i = 0; i < count; i++) {
-                times.push(i / count);
-            }
-            times.push(1);
+            const times = new Array(count + 1).fill().map((val, idx) => idx / count);
             element.setAttribute("keyTimes", times.join(";"));
             element.setAttribute("keyPoints", this.points.join(";"));
         }
