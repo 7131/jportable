@@ -112,7 +112,7 @@ SvgCore.prototype = Object.create(jmotion.Core.prototype, {
         // props
         this.drawProps(new Array(orbits.props.length).fill(new DOMPoint()));
         const holds = Array.from(new Set(orbits.props.map(elem => elem.paths).flat()));
-        holds.sort(this._compare.bind(this)).forEach(this.defs.appendChild, this.defs);
+        holds.sort(this._compare).forEach(this.defs.appendChild, this.defs);
         const props = this._getElements(this.middle, "use", "_prop").reverse();
         for (let i = 0; i < props.length; i++) {
             const element = props[i];

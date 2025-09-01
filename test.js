@@ -160,7 +160,7 @@ Controller.prototype = {
         if (errors.length == 0) {
             last.innerText = "All OK";
         } else {
-            last.innerText = `NG : ${errors.join()}`;
+            last.innerText = `NG: ${errors.join()}`;
             last.classList.add("error");
         }
         e.currentTarget.disabled = false;
