@@ -1,8 +1,7 @@
 @charset "utf-8";
 
-article {
+main {
     line-height: 1.8;
-    margin-bottom: 10ex;
 }
 
 input {
@@ -30,12 +29,12 @@ pre {
 }
 
 footer {
-    margin-top: 5ex;
+    margin: 5ex 0ex 10ex;
 }
 
 @media (orientation: landscape) {
 
-    article {
+    main {
         line-height: 1.5;
     }
 
