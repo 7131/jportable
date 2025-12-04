@@ -1,6 +1,7 @@
 # Juggling Simulator Portable Images
 
-https://7131.github.io/jportable/
+English site: https://7131.github.io/jportable/<br>
+Japanese site: https://app.7131.jp/jportable/
 
 If a siteswap pattern is specified, the SVG animation is generated using [jmotion](https://github.com/7131/jmotion)&apos;s default simulator.
 This application accepts vanilla, multiplex, and synchronous patterns.
