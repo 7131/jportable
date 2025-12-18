@@ -37,7 +37,7 @@ table tr td {
     color: red;
 }
 
-@media (min-width: 768px) {
+@media (orientation: landscape) {
 
     body {
         line-height: 1.5;

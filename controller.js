@@ -85,13 +85,13 @@ Controller.prototype = {
 
     // download as file
     "_download": function(e) {
-        if (!this._animation.firstChild) {
+        if (this._sourceArea.textContent.trim() == "") {
             // no source code
             return;
         }
 
         // get the blob string.
-        const blob = new Blob([ this._sourceArea.innerText ], { "type": "text/plain" });
+        const blob = new Blob([ this._sourceArea.textContent ], { "type": "text/plain" });
         const url = URL.createObjectURL(blob);
 
         // link for download
