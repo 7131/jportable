@@ -37,22 +37,22 @@ Controller.prototype = {
         // get the input value
         const text = document.getElementById("pattern").value;
         const message = document.getElementById("message");
-        message.innerHTML = "";
+        message.textContent = "";
+        this._sourceArea.textContent = "";
         this._animation.innerHTML = this._svgSource;
-        this._sourceArea.innerHTML = "";
 
         // create an SVG element
         this._parent.innerHTML = this._svgSource;
         const svg = this._parent.querySelector("svg");
         if (!svg || !text) {
-            message.innerHTML = "No data for animation.";
+            message.textContent = "No data for animation.";
             return;
         }
 
         // analyze
         const result = jmotion.Siteswap.analyze(text);
         if (!result.valid) {
-            message.innerHTML = result.message;
+            message.textContent = result.message;
             return;
         }
 
@@ -72,8 +72,8 @@ Controller.prototype = {
         core.setStyle({ "stroke-width": this._creator.getWidth() });
 
         // show
-        this._animation.innerHTML = svg.outerHTML;
-        const xml = svg.outerHTML.replace(/>\s+/g, ">");
+        this._animation.innerHTML = this._parent.innerHTML;
+        const xml = this._parent.innerHTML.trim().replace(/>\s+/g, ">");
         const arrange = xml.replace(/<\/\w+>/g, "$&\n").replace(/><([^\/])/g, ">\n<$1");
         this._sourceArea.appendChild(document.createTextNode(arrange));
     },
@@ -97,7 +97,7 @@ Controller.prototype = {
         // link for download
         const link = document.createElement("a");
         link.href = url;
-        link.download = `${this._animation.firstChild.id}.svg`;
+        link.download = `${this._animation.firstElementChild.id}.svg`;
         link.click();
         URL.revokeObjectURL(url);
     },
