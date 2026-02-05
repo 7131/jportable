@@ -52,17 +52,10 @@ Controller.prototype = {
                 } else {
                     node = div[0];
                 }
-                while (node && !(node instanceof Text)) {
-                    node = node.firstChild;
+                const text = node.textContent.trim();
+                if (text != "") {
+                    this._setExpected(`view_${i}`, expect, text);
                 }
-
-                // the string was split if it was long
-                let text = "";
-                while (node instanceof Text && node.textContent != "") {
-                    text += node.textContent;
-                    node = node.nextSibling;
-                }
-                this._setExpected(`view_${i}`, expect, text.trim());
             }
         }
 
@@ -79,9 +72,7 @@ Controller.prototype = {
     // set expected value column
     "_setExpected": function(id, cell, text) {
         // remove existing elements
-        while (cell.lastChild) {
-            cell.removeChild(cell.lastChild);
-        }
+        cell.textContent = "";
         cell.dataset.expected = text;
 
         // checkbox
@@ -112,14 +103,14 @@ Controller.prototype = {
             // total row
             for (let i = 1; i < this._rows.length; i++) {
                 const cell = this._rows[i].cells[ColNum.EXPECT];
-                if (cell.firstChild) {
-                    cell.firstChild.checked = check.checked;
-                    divs.push(cell.lastChild);
+                if (cell.firstElementChild) {
+                    cell.firstElementChild.checked = check.checked;
+                    divs.push(cell.lastElementChild);
                 }
             }
         } else {
             // test row
-            divs.push(check.parentElement.lastChild);
+            divs.push(check.parentElement.lastElementChild);
         }
         if (check.checked) {
             // show
