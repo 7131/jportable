@@ -23,6 +23,7 @@ table tr th {
 table tr td {
     border: 1px inset gray;
     padding: 0.5ex 1ex;
+    vertical-align: top;
 }
 
 .hidden {
