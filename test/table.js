@@ -137,8 +137,19 @@ class TableDealer {
             return "";
         }
 
+        // get the cell
+        const cell = this.#rows[this.#head + row].cells[this.#cols.get(name)];
+        let element = cell.querySelector("pre");
+        if (element == null) {
+            element = cell.querySelector("div");
+        }
+
         // using innerText instead of textContent to recognize line breaks
-        return this.#rows[this.#head + row].cells[this.#cols.get(name)].innerText;
+        if (element == null) {
+            return cell.innerText;
+        } else {
+            return element.innerText;
+        }
     }
 
     // set text in the cell
@@ -164,15 +175,15 @@ class TableDealer {
         }
         const id = `${caption}_${name}_${row}`;
         const cell = this.#rows[this.#head + row].cells[this.#cols.get(name)];
-        let parent = cell.querySelector("pre");
-        if (parent == null) {
-            parent = cell.querySelector("div");
+        let element = cell.querySelector("pre");
+        if (element == null) {
+            element = cell.querySelector("div");
         }
-        if (parent == null) {
-            parent = document.createElement("div");
-            parent.innerText = cell.innerText;
+        if (element == null) {
+            element = document.createElement("div");
+            element.innerText = cell.innerText;
         }
-        parent.classList.add("toggle", "hidden");
+        element.classList.add("toggle", "hidden");
         cell.innerHTML = "";
 
         // checkbox
@@ -187,7 +198,7 @@ class TableDealer {
         label.setAttribute("for", id);
         label.textContent = "Display";
         cell.appendChild(label);
-        cell.appendChild(parent);
+        cell.appendChild(element);
     }
 
     // create a row remplate
@@ -235,14 +246,14 @@ class TableDealer {
             return;
         }
         const cell = row.cells[this.#cols.get(name)];
-        let parent = cell.querySelector("pre");
-        if (parent == null) {
-            parent = cell.querySelector("div");
+        let element = cell.querySelector("pre");
+        if (element == null) {
+            element = cell.querySelector("div");
         }
-        if (parent == null) {
+        if (element == null) {
             cell.innerText = text;
         } else {
-            parent.innerText = text;
+            element.innerText = text;
         }
         if (css != null && css != "") {
             cell.classList.add(css);
@@ -368,14 +379,22 @@ class TestTable extends TableDealer {
         } else {
             actual = this.#method(data.params);
         }
-        const result = JSON.stringify(actual, this.replaceEvent);
-        if (result == JSON.stringify(data.expect)) {
-            return "";
+        let expect = data.expect;
+
+        // compare the results
+        if (typeof actual != "string" && !(actual instanceof String)) {
+            actual = JSON.stringify(actual, this.replaceEvent);
+            if (typeof expect == "string" || expect instanceof String) {
+                expect = JSON.stringify(JSON.parse(expect));
+            }
         }
-        if (typeof actual == "string" || actual instanceof String) {
-            return actual;
+        if (typeof expect != "string" && !(expect instanceof String)) {
+            expect = JSON.stringify(expect);
+        }
+        if (actual == expect) {
+            return "";
         } else {
-            return result;
+            return actual;
         }
     }
 
