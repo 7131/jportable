@@ -184,7 +184,7 @@ class TableDealer {
             element.innerText = cell.innerText;
         }
         element.classList.add("toggle", "hidden");
-        cell.innerHTML = "";
+        cell.textContent = "";
 
         // checkbox
         const check = document.createElement("input");
