@@ -133,12 +133,13 @@ class TableDealer {
 
     // get text from the cell
     getText(row, name) {
-        if (isNaN(row) || row < 0 || this.#rows.length - this.#head <= row || !this.#cols.has(name)) {
+        const number = parseInt(row, 10);
+        if (isNaN(number) || number < 0 || this.#rows.length - this.#head <= number || !this.#cols.has(name)) {
             return "";
         }
 
         // get the cell
-        const cell = this.#rows[this.#head + row].cells[this.#cols.get(name)];
+        const cell = this.#rows[this.#head + number].cells[this.#cols.get(name)];
         let element = cell.querySelector("pre");
         if (element == null) {
             element = cell.querySelector("div");
@@ -154,10 +155,11 @@ class TableDealer {
 
     // set text in the cell
     setText(row, name, text, css) {
-        if (isNaN(row) || row < 0 || this.dataCount <= row) {
+        const number = parseInt(row, 10);
+        if (isNaN(number) || number < 0 || this.dataCount <= number) {
             return;
         }
-        this.#setCell(this.#rows[this.#head + row], name, text, css);
+        this.#setCell(this.#rows[this.#head + number], name, text, css);
     }
 
     // set text in the footer cell
@@ -170,11 +172,12 @@ class TableDealer {
 
     // fold a cell
     foldCell(row, name, caption) {
-        if (isNaN(row) || row < 0 || this.#rows.length - this.#head <= row || !this.#cols.has(name)) {
+        const number = parseInt(row, 10);
+        if (isNaN(number) || number < 0 || this.#rows.length - this.#head <= number || !this.#cols.has(name)) {
             return;
         }
-        const id = `${caption}_${name}_${row}`;
-        const cell = this.#rows[this.#head + row].cells[this.#cols.get(name)];
+        const id = `${caption}_${name}_${number}`;
+        const cell = this.#rows[this.#head + number].cells[this.#cols.get(name)];
         let element = cell.querySelector("pre");
         if (element == null) {
             element = cell.querySelector("div");

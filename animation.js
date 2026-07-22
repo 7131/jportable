@@ -470,10 +470,11 @@ class PlaneChain {
         }
 
         // repeat
-        if (isNaN(loop)) {
-            loop = 0;
+        let number = parseInt(loop, 10);
+        if (isNaN(number)) {
+            number = 0;
         }
-        this.planes[loop].addBegin(this.planes[last]);
+        this.planes[number].addBegin(this.planes[last]);
         return this;
     }
 
@@ -521,10 +522,11 @@ class PartBase {
 
     // set the duration time (ms)
     setDuring(value) {
-        if (isNaN(value) || value < 0) {
-            value = 0;
+        let number = parseFloat(value);
+        if (isNaN(number) || number < 0) {
+            number = 0;
         }
-        this.during = value;
+        this.during = number;
         return this;
     }
 
@@ -533,8 +535,8 @@ class PartBase {
         // start timing
         const begins = [];
         for (const element of this.begins) {
-            if (isNaN(element)) {
-                if (typeof element.getId === "function") {
+            if (typeof element == "object") {
+                if (typeof element.getId == "function") {
                     begins.push(`${element.getId()}.end`);
                 } else {
                     begins.push(element);
@@ -575,10 +577,11 @@ class HaltPart extends PartBase {
 
     // set the value
     setTo(value) {
-        if (isNaN(value)) {
-            value = 0;
+        let number = parseFloat(value);
+        if (isNaN(number)) {
+            number = 0;
         }
-        this.to = value;
+        this.to = number;
         return this;
     }
 
@@ -606,7 +609,7 @@ class ValuePart extends PartBase {
         if (!Array.isArray(values)) {
             return this;
         }
-        this.values = values.filter(elem => !isNaN(elem));
+        this.values = values.map(parseFloat).filter(elem => !isNaN(elem));
         return this;
     }
 
