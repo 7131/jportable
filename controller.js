@@ -4,7 +4,7 @@ class Controller {
     #parent;
     #sourceArea;
     #svgSource;
-    #creator = new AnimCreator();
+    #generator = new AnimGenerator();
 
     // constructor
     constructor() {
@@ -18,12 +18,12 @@ class Controller {
         this.#svgSource = this.#animation.innerHTML;
         this.#parent = document.createElement("div");
         this.#sourceArea = document.getElementById("source");
-        const createButton = document.getElementById("create");
+        const generateButton = document.getElementById("generate");
         const clipboardButton = document.getElementById("clipboard");
         const downloadButton = document.getElementById("download");
 
         // events
-        createButton.addEventListener("click", this.#create.bind(this));
+        generateButton.addEventListener("click", this.#generate.bind(this));
         clipboardButton.addEventListener("click", this.#copy.bind(this));
         downloadButton.addEventListener("click", this.#download.bind(this));
 
@@ -31,12 +31,12 @@ class Controller {
         const params = new URLSearchParams(window.location.search);
         if (0 < params.size) {
             document.getElementById("pattern").value = params.keys().next().value;
-            this.#create(e);
+            this.#generate(e);
         }
     }
 
-    // create an SVG image
-    #create(e) {
+    // generate an SVG image
+    #generate(e) {
         // get the input value
         const text = document.getElementById("pattern").value;
         const message = document.getElementById("message");
@@ -44,7 +44,7 @@ class Controller {
         this.#sourceArea.textContent = "";
         this.#animation.innerHTML = this.#svgSource;
 
-        // create an SVG element
+        // since animations start as soon as they are added to the DOM, they must be created outside the DOM
         this.#parent.innerHTML = this.#svgSource;
         const svg = this.#parent.querySelector("svg");
         if (!svg || !text) {
@@ -63,18 +63,18 @@ class Controller {
         svg.id = `pattern_${result.text}`;
         svg.setAttribute("xmlns", svg.namespaceURI);
         const core = new SvgCore(svg);
-        this.#creator.setId(svg.id);
-        const motions = [ this.#creator.paths.right, this.#creator.paths.left ].flat();
+        this.#generator.setId(svg.id);
+        const motions = [ this.#generator.paths.right, this.#generator.paths.left ].flat();
         motions.forEach(elem => core.defs.appendChild(elem[0]));
 
         // set the animation
         const table = jmotion.Siteswap.separate(result.throws, result.sync);
-        const orbits = this.#creator.calculateOrbits(table, result.sync);
+        const orbits = this.#generator.calculateOrbits(table, result.sync, result.throws);
         core.animate(orbits);
-        core.setScale(this.#creator.getScale());
-        core.setStyle({ "stroke-width": this.#creator.getWidth() });
+        core.scale = this.#generator.scale;
+        core.setStyle({ "stroke-width": this.#generator.width });
 
-        // show
+        // add to the DOM
         this.#animation.innerHTML = this.#parent.innerHTML;
         const xml = this.#parent.innerHTML.trim().replace(/>\s+/g, ">");
         const arrange = xml.replace(/<\/\w+>/g, "$&\n").replace(/><([^\/])/g, ">\n<$1");

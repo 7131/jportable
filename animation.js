@@ -1,7 +1,7 @@
 // SVG core class
 class SvgCore extends jmotion.Core {
-    #arms = [];
-    #hands = [];
+    #arms;
+    #hands;
 
     // constructor
     constructor(svg) {
@@ -71,28 +71,33 @@ class SvgCore extends jmotion.Core {
                     prop.id = this.#getId("prop", i);
                 }
             }
-            super.setProps(props);
+            this.props = props;
         }
     }
 
     // set the animation
-    animate(orbits) {
+    animate(orbits, rotation) {
+        let number = parseFloat(rotation);
+        if (isNaN(number)) {
+            number = 0;
+        }
+
         // arms
-        const number = Math.min(orbits.arms.length, this.#arms.length);
-        for (let i = 0; i < number; i++) {
+        const min = Math.min(orbits.arms.length, this.#arms.length);
+        for (let i = 0; i < min; i++) {
             // starting with the wrist
             const length = Math.min(orbits.arms[i].length - 1, this.#arms[i].length);
             for (let j = 0; j < length; j++) {
                 const element = this.#arms[i][j];
-                const arm1 = this.#createNumericChain(element.id, orbits.arms[i][j], "x1", "y1");
-                const arm2 = this.#createNumericChain(element.id, orbits.arms[i][j + 1], "x2", "y2");
+                const arm1 = this.#createArmChain(element, orbits.arms[i][j], "x1", "y1");
+                const arm2 = this.#createArmChain(element, orbits.arms[i][j + 1], "x2", "y2");
                 this.#appendAnimation(element, arm1, arm2);
             }
 
             // last joint
             if (length < this.#arms[i].length) {
                 const element = this.#arms[i][length];
-                const arm1 = this.#createNumericChain(element.id, orbits.arms[i][length], "x1", "y1");
+                const arm1 = this.#createArmChain(element, orbits.arms[i][length], "x1", "y1");
                 this.#appendAnimation(element, arm1);
             }
         }
@@ -101,13 +106,7 @@ class SvgCore extends jmotion.Core {
         const count = Math.min(orbits.hands.length, this.#hands.length);
         for (let i = 0; i < count; i++) {
             const element = this.#hands[i];
-            const hand = orbits.hands[i].setId(element.id);
-            let loop = 0;
-            while (loop < hand.planes.length && hand.planes[loop] instanceof HaltPlane) {
-                loop++;
-            }
-            hand.setChain(loop);
-            this.#appendAnimation(element, hand);
+            this.#appendAnimation(element, orbits.hands[i].setId(element.id).setChain(0));
         }
 
         // props
@@ -119,14 +118,27 @@ class SvgCore extends jmotion.Core {
             const element = props[i];
             element.removeAttribute("x");
             element.removeAttribute("y");
-            const orbit = orbits.props[i];
-            const prop = orbit.chain.setId(element.id);
-            this.#appendAnimation(element, prop.setChain(orbit.loop));
+            this.#appendAnimation(element, orbits.props[i].chain.setId(element.id).setChain(0));
+        }
+
+        // rotation settings
+        const rots = this.#appendRotation(this.defs, props);
+        if (number != 0) {
+            for (let i = 0; i < rots.length; i++) {
+                const chain = new PlaneChain();
+                const throws = orbits.props[i].chain.getPlanes(ParabolicPlane);
+                for (const x of throws.map(elem => elem.getX())) {
+                    const trans = new TransformPlane().setBegins(x.getBegins()).setDuring(x.getDuring());
+                    const round = Math.floor(x.getDuring() / orbits.unit / 2) * number;
+                    chain.addPlane(trans.setTo(Math.sign(x.getValues()[0]) * 360 * round));
+                }
+                this.#appendAnimation(rots[i], chain);
+            }
         }
 
         // remove unused props
         const defs = this.#getElements(this.defs, "circle", "prop");
-        const refs = props.map(elem => elem.getAttribute("href").slice(1));
+        const refs = rots.map(elem => elem.getAttribute("href").slice(1));
         defs.filter(elem => !refs.includes(elem.id)).forEach(this.defs.removeChild, this.defs);
     }
 
@@ -162,18 +174,50 @@ class SvgCore extends jmotion.Core {
         }
     }
 
-    // create a chain of numerical planes
-    #createNumericChain(name, original, x, y) {
-        const plane = new NumericPlane().setDuring(original.x.during);
-        plane.setAttribute(x, y).setValues(original.x.values, original.y.values);
-        const chain = new PlaneChain().addPlane(plane).setId(`${name}_${x}`);
-        chain.begin = original.x.begins[0];
-        return chain.setChain();
+    // create a chain of arm planes
+    #createArmChain(element, original, x, y) {
+        const chain = new PlaneChain();
+        const ox = original.getX();
+        const oy = original.getY();
+        const xs = ox.getValues();
+        const ys = oy.getValues();
+        if (xs.length == 0 || ys.length == 0) {
+            return chain;
+        }
+
+        // check whether all the coordinates are the same
+        let plane;
+        if (xs.every(elem => elem == xs[0]) && ys.every(elem => elem == ys[0])) {
+            if (xs[0] == parseFloat(element.getAttribute(x)) && ys[0] == parseFloat(element.getAttribute(y))) {
+                return chain;
+            }
+            plane = new HaltPlane().setTo({ "x": xs[0], "y": ys[0] });
+        } else {
+            plane = new NumericPlane().setValues(xs, ys);
+        }
+        plane.setDuring(ox.getDuring()).setAttribute(x, y);
+        chain.addPlane(plane);
+        return chain.setId(`${element.id}_${x}`).setChain(ox.getBegins()[0]);
     }
 
     // add animation elements
     #appendAnimation(parent, ...chains) {
         chains.forEach(elem => elem.createElements().forEach(parent.appendChild, parent));
+    }
+
+    // add rotation elements
+    #appendRotation(parent, elements) {
+        const rotations = [];
+        for (const element of elements) {
+            const id = `${element.id}_rot`;
+            const rotation = document.createElementNS("http://www.w3.org/2000/svg", "use");
+            rotation.setAttribute("id", id);
+            rotation.setAttribute("href", element.getAttribute("href"));
+            parent.appendChild(rotation);
+            rotations.push(rotation);
+            element.setAttribute("href", `#${id}`);
+        }
+        return rotations;
     }
 
     // compare elements
@@ -190,12 +234,12 @@ class SvgCore extends jmotion.Core {
 
 }
 
-// Animation creator class
-class AnimCreator extends jmotion.BasicCreator {
+// Animation generator class
+class AnimGenerator extends jmotion.CalmGenerator {
     #id = "";
     #tick = 40;
-    #scale = 1;
-    #unit = this.#tick * 12;
+    #div = 12;
+    #unit = this.#tick * this.#div;
 
     // set the ID
     setId(value) {
@@ -211,25 +255,25 @@ class AnimCreator extends jmotion.BasicCreator {
     }
 
     // calculate orbits
-    calculateOrbits(table, sync) {
+    calculateOrbits(table, sync, throws) {
         // get a list of coordinates
-        const orbits = super.calculateOrbits(table, sync);
-        this.#scale = super.getScale();
-        const max = this.#scale * 4 + 1;
-        const div = Math.round(120 / (max + 5));
-        this.#unit = this.#tick * div;
+        const orbits = super.calculateOrbits(table, sync, throws);
+        const max = this.scale * 4 + 1;
+        this.#div = Math.round(120 / (max + 5));
+        this.#unit = this.#tick * this.#div;
 
         // orbit of each arm
         const points = this.#roundPoints(orbits.arms);
         const arms = this.#getArms(points);
+        const timing = this.#createTimings(throws, sync);
         const hands = [];
-        hands.push(this.#getHand(this.paths.right, false));
-        hands.push(this.#getHand(this.paths.left, !sync, points[1][0].loop[0]));
+        hands.push(this.#getHand(this.paths.right, timing, 0, false, points));
+        hands.push(this.#getHand(this.paths.left, timing, 1, !sync, points));
 
         // orbit of each prop
         const holds = this.#createHolds(arms.map(elem => elem[0]));
-        const props = table.map(elem => this.#getProp(elem, holds[0], holds[1], sync));
-        return { "arms": arms, "hands": hands, "props": props };
+        const props = table.map(elem => this.#getProp(elem, holds[0], holds[1], timing, sync));
+        return { "arms": arms, "hands": hands, "props": props, "unit": this.#unit };
     }
 
     // round off the coordinate values
@@ -240,15 +284,33 @@ class AnimCreator extends jmotion.BasicCreator {
             for (const joint of joints) {
                 const loop = [];
                 for (const point of joint.loop) {
-                    const x = Math.round(point.x * 100) / 100;
-                    const y = Math.round(point.y * 100) / 100;
-                    loop.push({ "x": x, "y": y });
+                    loop.push({ "x": Math.round(point.x * 100) / 100, "y": Math.round(point.y * 100) / 100 });
                 }
                 part.push({ "init": joint.init, "loop": loop });
             }
             after.push(part);
         }
         return after;
+    }
+
+    // create the timing for the throw
+    #createTimings(throws, sync) {
+        const timing = new Array(throws.length).fill().map(() => []);
+        for (let i = 0; i < throws.length; i++) {
+            for (const number of throws[i]) {
+                if (0 < number) {
+                    if (sync && number % 2 == 1) {
+                        timing[i].push(-(number + (i % 2) * 2 - 1));
+                    } else {
+                        timing[i].push(number);
+                    }
+                }
+            }
+        }
+        if (throws.length % 2 == 0) {
+            return timing;
+        }
+        return timing.concat(timing);
     }
 
     // get the arm orbits
@@ -261,11 +323,8 @@ class AnimCreator extends jmotion.BasicCreator {
                 // joint by joint
                 const init = this.#transpose(orbit.init);
                 const loop = this.#transpose(orbit.loop);
-                const plane = new NumericPlane();
-                plane.addBegin(init.x.length * this.#tick);
-                plane.setDuring(loop.x.length * this.#tick);
-                plane.setValues(loop.x.concat([ loop.x[0] ]), loop.y.concat([ loop.y[0] ]));
-                joint.push(plane);
+                const plane = new NumericPlane().addBegin(init.x.length * this.#tick).setDuring(loop.x.length * this.#tick);
+                joint.push(plane.setValues(loop.x.concat([ loop.x[0] ]), loop.y.concat([ loop.y[0] ])));
             }
             joints.push(joint);
         }
@@ -273,46 +332,102 @@ class AnimCreator extends jmotion.BasicCreator {
     }
 
     // get the hand orbits
-    #getHand(paths, lagged, point) {
-        const hand = new PlaneChain();
-        if (lagged) {
+    #getHand(paths, timing, lag, gap, points) {
+        const ids = paths.map(elem => elem[0].id);
+        const calm = points[lag][0].loop[0];
+        const chain = new PlaneChain();
+        if (gap) {
             // there is a delay in start
-            const plane = new HaltPlane().setDuring(this.#unit);
-            hand.addPlane(plane.setTo(point));
+            chain.addHaltPlane(this.#unit, calm);
         }
-        for (const joints of paths) {
-            // orbit by orbit
-            const plane = new MotionPlane().setDuring(this.#unit);
-            hand.addPlane(plane.setReferenceId(joints[0].id));
+        chain.startLoop();
+
+        // repetitive motion
+        const loop = [];
+        for (let i = lag; i < timing.length; i += 2) {
+            if (timing[i].some(elem => elem != 2)) {
+                loop.push("busy");
+            } else if (timing[(i - 1 + timing.length) % timing.length].some(elem => elem == 1)) {
+                loop.push("zip");
+            } else {
+                loop.push("calm");
+            }
         }
-        return hand;
+
+        // remove duplicates
+        const period = loop.length;
+        let stride = 1;
+        let result = loop;
+        while (result == loop && stride <= period / 2) {
+            if (period % stride == 0) {
+                const unit = loop.slice(0, stride);
+                let valid = true;
+                let start = stride;
+                while (valid && start < period) {
+                    valid = unit.every((val, idx) => val == loop[start + idx]);
+                    start += stride;
+                }
+                if (valid) {
+                    result = unit;
+                }
+            }
+            stride++;
+        }
+
+        // get the coordinates
+        const half = this.#unit / 2;
+        const double = this.#unit * 2;
+        for (const text of result) {
+            switch (text) {
+                case "busy":
+                    for (const id of ids) {
+                        chain.addMotionPlane(id, this.#unit);
+                    }
+                    break;
+                case "zip":
+                    chain.addMotionPlane(ids[0], half, [ 0, 0.5 ]);
+                    chain.addMotionPlane(ids[0], half, [ 0.5, 0 ]);
+                    chain.addHaltPlane(this.#unit, calm);
+                    break;
+                default:
+                    chain.addHaltPlane(double, calm);
+                    break;
+            }
+        }
+        return chain;
     }
 
     // create holding orbits for the props
-    #createHolds(planes) {
+    #createHolds() {
+        const moves = [ this.paths.right, this.paths.left ];
         const offset = [ this.offset.right, this.offset.left ];
         const holds = [];
-        for (let i = 0; i < planes.length; i++) {
-            const plane = planes[i];
-            const end = plane.x.values.length - 1;
-            const mid = end / 2;
+        for (let i = 0; i < moves.length; i++) {
             const hold = [];
-            for (let j = 0; j < 2; j++) {
-                const start = mid * j;
+            for (let j = 0; j < moves[i].length; j++) {
+                const path = moves[i][j][0];
+
+                // get the coordinates
+                const points = [];
+                const delta = path.getTotalLength() / this.#div;
+                let distance = 0;
+                for (let k = 0; k <= this.#div; k++) {
+                    points.push(path.getPointAtLength(distance));
+                    distance += delta;
+                }
 
                 // coordinates to string
-                const points = [];
-                for (let k = 0; k <= mid; k++) {
-                    const index = start + k;
-                    const x = Math.round((plane.x.values[index] + offset[i].x) * 100) / 100;
-                    const y = Math.round((plane.y.values[index] + offset[i].y) * 100) / 100;
-                    points.push(`${x},${y}`);
+                const texts = [];
+                for (const point of points) {
+                    const x = Math.round((point.x + offset[i].x) * 100) / 100;
+                    const y = Math.round((point.y + offset[i].y) * 100) / 100;
+                    texts.push(`${x},${y}`);
                 }
 
                 // create a path element
                 const element = document.createElementNS("http://www.w3.org/2000/svg", "path");
                 element.setAttribute("id", `${this.#id}_hold_${i}_${j}`);
-                element.setAttribute("d", `M ${points.join(" L ")}`);
+                element.setAttribute("d", `M ${texts.join(" L ")}`);
 
                 // holding orbit
                 const length = element.getTotalLength();
@@ -327,10 +442,12 @@ class AnimCreator extends jmotion.BasicCreator {
     }
 
     // get the prop orbits
-    #getProp(prop, forward, opposite, sync) {
+    #getProp(prop, right, left, timing, sync) {
         const chain = new PlaneChain();
         const paths = new Set();
         const half = this.#unit / 2;
+        let forward = right;
+        let opposite = left;
 
         // before start
         let lag = prop.start % 2;
@@ -338,18 +455,30 @@ class AnimCreator extends jmotion.BasicCreator {
             [ forward, opposite ] = [ opposite, forward ];
             if (!sync) {
                 // there is a delay in start
-                const halt = new HaltPlane().setDuring(this.#unit);
-                chain.addPlane(halt.setTo(forward[0].first));
+                chain.addHaltPlane(this.#unit, forward[0].first);
             }
         }
 
         // initial operation
         let time = prop.start;
+        let tick = time;
         for (let i = 0; i < time - lag; i++) {
-            const hold = forward[i % forward.length];
-            paths.add(hold.element);
-            const plane = new MotionPlane().setDuring(this.#unit);
-            chain.addPlane(plane.setReferenceId(hold.id));
+            const curr = i - i % 2 + lag;
+            const busy = timing[curr % timing.length].some(elem => elem != 2);
+            const zip = timing[(curr - 1 + timing.length) % timing.length].some(elem => elem == 1);
+            const pos = i % forward.length;
+            if (busy) {
+                const hold = forward[pos];
+                paths.add(hold.element);
+                chain.addMotionPlane(hold.id, this.#unit);
+            } else if (zip && pos == 0) {
+                const hold = forward[pos];
+                paths.add(hold.element);
+                chain.addMotionPlane(hold.id, half, [ 0, 0.5 ]);
+                chain.addMotionPlane(hold.id, half, [ 0.5, 0 ]);
+            } else {
+                chain.addHaltPlane(this.#unit, forward[0].first);
+            }
         }
 
         // tweak
@@ -357,43 +486,57 @@ class AnimCreator extends jmotion.BasicCreator {
         if (prev == 1) {
             const hold = forward[time % forward.length];
             paths.add(hold.element);
-            const plane = new MotionPlane().setDuring(half).setPoints(0, 0.5);
-            chain.addPlane(plane.setReferenceId(hold.id));
+            chain.addMotionPlane(hold.id, half, [ 0, 0.5 ]);
         }
-        const loop = chain.planes.length;
+        chain.startLoop();
 
         // repetitive motion
         let index = (time - lag) % forward.length;
         for (let i = 0; i < prop.numbers.length; i++) {
             const number = prop.numbers[i];
+            const busy = timing[tick % timing.length].some(elem => elem != 2);
+            const zip = timing[(tick - 1 + timing.length) % timing.length].some(elem => elem == 1);
 
             // an orbit from catch to throw
-            const hold = forward[index];
             const motion = new MotionPlane();
+            const hold = forward[index];
             let from = hold.last;
             if (number == 1) {
-                from = hold.middle;
                 if (prev != 1) {
-                    motion.setDuring(half).setPoints(0, 0.5);
+                    motion.setDuring(half).setPoints([ 0, 0.5 ]);
                 }
+                from = hold.middle;
             } else {
                 if (prev == 1) {
-                    motion.setDuring(half).setPoints(0.5, 1);
+                    if (busy) {
+                        motion.setDuring(half).setPoints([ 0.5, 1 ]);
+                    } else {
+                        motion.setDuring(half).setPoints([ 0.5, 0 ]);
+                    }
                 } else {
-                    motion.setDuring(this.#unit);
+                    if (busy || zip) {
+                        motion.setDuring(this.#unit);
+                    } else {
+                        chain.addHaltPlane(this.#unit, hold.first);
+                    }
                 }
             }
-            if (number != 1 || prev != 1) {
+            if (0 < motion.getDuring()) {
                 paths.add(hold.element);
                 chain.addPlane(motion.setReferenceId(hold.id));
             }
 
             // parabolic orbit from throw to catch
             if (number == 2) {
-                const ret = forward[(index + 1) % forward.length];
-                paths.add(ret.element);
-                const plane = new MotionPlane().setDuring(this.#unit);
-                chain.addPlane(plane.setReferenceId(ret.id));
+                if (busy) {
+                    const ret = forward[(index + 1) % forward.length];
+                    paths.add(ret.element);
+                    chain.addMotionPlane(ret.id, this.#unit);
+                } else {
+                    chain.addHaltPlane(this.#unit, hold.first);
+                }
+                time += number;
+                tick += number;
             } else {
                 if (prop.times[i] % 2 == 1) {
                     // when throwing to the opposite hand
@@ -404,13 +547,14 @@ class AnimCreator extends jmotion.BasicCreator {
                 }
                 const abs = Math.abs(number);
                 time += abs;
+                tick += prop.times[i];
                 index = (time - lag) % forward.length;
                 let to = forward[index].first;
                 if (number == 1) {
                     to = forward[index].middle;
                 }
                 const air = Math.max(1, abs - 1);
-                const height = air * air * 15 / this.#scale;
+                const height = air * air * 15 / this.scale;
 
                 // animation plane
                 const parabola = new ParabolicPlane().setDuring(this.#unit * air);
@@ -419,354 +563,12 @@ class AnimCreator extends jmotion.BasicCreator {
             }
             prev = number;
         }
-        return { "chain": chain, "loop": loop, "paths": Array.from(paths) };
+        return { "chain": chain, "paths": Array.from(paths) };
     }
 
     // transpose coordinates
     #transpose(points) {
         return { "x": points.map(elem => elem.x), "y": points.map(elem => elem.y) };
-    }
-
-}
-
-// Animation plane chain class
-class PlaneChain {
-
-    // constructor
-    constructor() {
-        this.planes = [];
-        this.begin = 0;
-    }
-
-    // add an animation plane
-    addPlane(value) {
-        this.planes.push(value);
-        return this;
-    }
-
-    // set the ID
-    setId(value) {
-        if (this.planes.length == 1) {
-            this.planes[0].setId(value);
-        } else {
-            for (let i = 0; i < this.planes.length; i++) {
-                this.planes[i].setId(value, i);
-            }
-        }
-        return this;
-    }
-
-    // set the chain
-    setChain(loop) {
-        const last = this.planes.length - 1;
-        if (last < 0) {
-            return this;
-        }
-        this.planes[0].addBegin(this.begin);
-
-        // set the order from the top
-        for (let i = 0; i < last; i++) {
-            this.planes[i + 1].addBegin(this.planes[i]);
-        }
-
-        // repeat
-        let number = parseInt(loop, 10);
-        if (isNaN(number)) {
-            number = 0;
-        }
-        this.planes[number].addBegin(this.planes[last]);
-        return this;
-    }
-
-    // create SVG elements
-    createElements() {
-        return this.planes.map(elem => elem.createElements()).flat();
-    }
-
-}
-
-// Animation part base class
-class PartBase {
-
-    // constructor
-    constructor(name) {
-        this.name = name || "animate";
-        this.id = "";
-        this.attribute = "";
-        this.begins = [];
-        this.during = 0;
-    }
-
-    // set the ID
-    setId(value, postfix) {
-        if (postfix == null || postfix === "") {
-            this.id = value;
-        } else {
-            this.id = `${value}_${postfix}`;
-        }
-        return this;
-    }
-
-    // get the ID
-    getId() {
-        return this.id;
-    }
-
-    // add the start timing
-    addBegin(value) {
-        if (this.begins.indexOf(value) < 0) {
-            this.begins.push(value);
-        }
-        return this;
-    }
-
-    // set the duration time (ms)
-    setDuring(value) {
-        let number = parseFloat(value);
-        if (isNaN(number) || number < 0) {
-            number = 0;
-        }
-        this.during = number;
-        return this;
-    }
-
-    // create SVG elements
-    createElements() {
-        // start timing
-        const begins = [];
-        for (const element of this.begins) {
-            if (typeof element == "object") {
-                if (typeof element.getId == "function") {
-                    begins.push(`${element.getId()}.end`);
-                } else {
-                    begins.push(element);
-                }
-            } else {
-                begins.push(this.#getTime(element));
-            }
-        }
-
-        // create an animation element
-        const element = document.createElementNS("http://www.w3.org/2000/svg", this.name);
-        if (this.id) {
-            element.setAttribute("id", this.id);
-        }
-        if (this.attribute) {
-            element.setAttribute("attributeName", this.attribute);
-        }
-        element.setAttribute("begin", begins.join(";"));
-        element.setAttribute("dur", this.#getTime(this.during));
-        return element;
-    }
-
-    // get a time string
-    #getTime(value) {
-        return `${value}ms`;
-    }
-
-}
-
-// Halt part class
-class HaltPart extends PartBase {
-
-    // constructor
-    constructor() {
-        super("set");
-        this.to = 0;
-    }
-
-    // set the value
-    setTo(value) {
-        let number = parseFloat(value);
-        if (isNaN(number)) {
-            number = 0;
-        }
-        this.to = number;
-        return this;
-    }
-
-    // create SVG elements
-    createElements() {
-        const element = super.createElements();
-        element.setAttribute("to", this.to);
-        return element;
-    }
-
-}
-
-// Value part class
-class ValuePart extends PartBase {
-
-    // constructor
-    constructor() {
-        super();
-        this.values = [];
-    }
-
-    // set the list of values
-    setValues(values) {
-        this.values = [];
-        if (!Array.isArray(values)) {
-            return this;
-        }
-        this.values = values.map(parseFloat).filter(elem => !isNaN(elem));
-        return this;
-    }
-
-    // create SVG elements
-    createElements() {
-        const element = super.createElements();
-        element.setAttribute("values", this.values.join(";"));
-        return element;
-    }
-
-}
-
-// Parabolic part class
-class ParabolicPart extends ValuePart {
-
-    // create SVG elements
-    createElements() {
-        const element = super.createElements();
-        element.setAttribute("calcMode", "spline");
-        element.setAttribute("values", this.values.join(";"));
-        element.setAttribute("keyTimes", "0;0.5;1");
-        element.setAttribute("keySplines", "0.33,0.67 0.67,1;0.33,0 0.67,0.33");
-        return element;
-    }
-
-}
-
-// Animation plane base class
-class PlaneBase {
-
-    // constructor
-    constructor(x, y) {
-        this.x = x;
-        this.y = y;
-    }
-
-    // set the ID
-    setId(value, postfix) {
-        this.x.setId(value, postfix);
-        return this;
-    }
-
-    // get the ID
-    getId() {
-        return this.x.getId();
-    }
-
-    // set the operation attribute
-    setAttribute(x, y) {
-        this.x.attribute = x;
-        this.y.attribute = y;
-        return this;
-    }
-
-    // add the start timing
-    addBegin(value) {
-        this.x.addBegin(value);
-        this.y.addBegin(value);
-        return this;
-    }
-
-    // set the duration time (ms)
-    setDuring(value) {
-        this.x.setDuring(value);
-        this.y.setDuring(value);
-        return this;
-    }
-
-    // create SVG elements
-    createElements() {
-        return [ this.x.createElements(), this.y.createElements() ].flat();
-    }
-
-}
-
-// Halt plane class
-class HaltPlane extends PlaneBase {
-
-    // constructor
-    constructor() {
-        super(new HaltPart(), new HaltPart());
-        super.setAttribute("x", "y");
-    }
-
-    // set the value
-    setTo(value) {
-        this.x.setTo(value.x);
-        this.y.setTo(value.y);
-        return this;
-    }
-
-}
-
-// Numeric plane class
-class NumericPlane extends PlaneBase {
-
-    // constructor
-    constructor(x, y) {
-        super(x || new ValuePart(), y || new ValuePart());
-    }
-
-    // set the list of values
-    setValues(xs, ys) {
-        this.x.setValues(xs);
-        this.y.setValues(ys);
-        return this;
-    }
-
-}
-
-// Parabolic plane class
-class ParabolicPlane extends NumericPlane {
-
-    // constructor
-    constructor() {
-        super(new ValuePart(), new ParabolicPart());
-        super.setAttribute("x", "y");
-    }
-
-}
-
-// Motion plane class
-class MotionPlane extends PartBase {
-
-    // constructor
-    constructor() {
-        super("animateMotion");
-        this.href = "";
-        this.points = [];
-    }
-
-    // set the reference ID
-    setReferenceId(value) {
-        this.href = value;
-        return this;
-    }
-
-    // set the portion to be used
-    setPoints(...values) {
-        this.points = values;
-        return this;
-    }
-
-    // create SVG elements
-    createElements() {
-        const element = super.createElements();
-        const count = this.points.length - 1;
-        if (0 < count) {
-            // if the part to be used is specified
-            const times = new Array(count + 1).fill().map((val, idx) => idx / count);
-            element.setAttribute("keyTimes", times.join(";"));
-            element.setAttribute("keyPoints", this.points.join(";"));
-        }
-        const mpath = document.createElementNS(element.namespaseURI, "mpath");
-        mpath.setAttribute("href", `#${this.href}`);
-        element.appendChild(mpath);
-        return element;
     }
 
 }

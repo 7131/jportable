@@ -5,7 +5,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <link rel="stylesheet" type="text/css" href="./default.css">
-<script src="https://7131.github.io/jmotion/v10/jmotion.js"></script>
+<script src="https://7131.github.io/jmotion/v20/jmotion.js"></script>
+<script src="./parts.js"></script>
 <script src="./animation.js"></script>
 <script src="./controller.js"></script>
 <title>Juggling Simulator Portable Images</title>
@@ -15,7 +16,7 @@
 <header>
 <h1>Juggling Simulator Portable Images</h1>
 <p>
-Specify a siteswap and click the "Create" button to start the simulator.
+Specify a siteswap and click the "Generate" button to start the simulator.
 At the same time, the movements shown by the simulator are displayed as SVG animation source code.
 The SVG source code can be carried as is.
 </p>
@@ -24,7 +25,7 @@ The SVG source code can be carried as is.
 <main>
 <div>
   <input type="text" id="pattern" value="3">
-  <button id="create">Create</button>
+  <button id="generate">Generate</button>
   <div id="message"></div>
 </div>
 <div id="animation">

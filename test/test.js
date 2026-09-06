@@ -1,7 +1,7 @@
 // Controller class
 class Controller {
     #test;
-    #creator = new AnimCreator();
+    #generator = new AnimGenerator();
     #svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
 
     // constructor
@@ -40,19 +40,19 @@ class Controller {
 
         // preparation for animation
         const core = new SvgCore(this.#svg);
-        this.#creator.setId(this.#svg.id);
-        const motions = [ this.#creator.paths.right, this.#creator.paths.left ].flat();
+        this.#generator.setId(this.#svg.id);
+        const motions = [ this.#generator.paths.right, this.#generator.paths.left ].flat();
         motions.forEach(elem => core.defs.appendChild(elem[0]));
 
         // execute
         const result = jmotion.Siteswap.analyze(text);
         const table = jmotion.Siteswap.separate(result.throws, result.sync);
-        const orbits = this.#creator.calculateOrbits(table, result.sync);
+        const orbits = this.#generator.calculateOrbits(table, result.sync, result.throws);
 
         // set to SVG
         core.animate(orbits);
-        core.setScale(this.#creator.getScale());
-        core.setStyle({ "stroke-width": this.#creator.getWidth() });
+        core.scale = this.#generator.scale;
+        core.setStyle({ "stroke-width": this.#generator.width });
         return this.#svg.outerHTML;
     }
 

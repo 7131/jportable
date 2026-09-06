@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" type="text/css" href="../default.css">
+<script src="https://7131.github.io/jmotion/v20/jmotion.js"></script>
+<script src="../parts.js"></script>
+<script src="../animation.js"></script>
+<title>Rotating sample</title>
+</head>
+
+<body>
+<header>
+<h1>Rotating sample</h1>
+</header>
+
+<main>
+<div id="animation">
+  <svg>
+    <defs>
+      <g id="apple" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M 0,-8 c 8,-3 12,0 12,8 s -6,15 -12,12 c -6,3 -12,-5 -12,-12 s 5,-11 12,-8 z" stroke="brown" fill="red" />
+        <path d="M 0,-5 l 2,-8 l 1,2 z" stroke="green" />
+        <path d="M -3,-6 c 1,2 5,2 6,0" stroke="maroon" fill="none" />
+        <path d="M -9,-1 q 0,-2 2,-4" stroke="yellow" stroke-width="3" fill="none" />
+      </g>
+    </defs>
+  </svg>
+</div>
+<button onclick="generate(7531)">Start</button>
+<script>
+const generator = new AnimGenerator();
+const parent = document.createElement("div");
+const animation = document.getElementById("animation");
+const source = animation.innerHTML;
+
+// generate an SVG image
+function generate(text) {
+    animation.innerHTML = source;
+
+    // since animations start as soon as they are added to the DOM, they must be created outside the DOM
+    parent.innerHTML = source;
+    const core = new SvgCore(parent.querySelector("svg"));
+    core.props = [ document.getElementById("apple") ];
+
+    // analyze
+    const result = jmotion.Siteswap.analyze(text);
+    core.svg.id = `pattern_${result.text}`;
+    generator.setId(core.svg.id);
+    const motions = [ generator.paths.right, generator.paths.left ].flat();
+    motions.forEach(elem => core.defs.appendChild(elem[0]));
+
+    // set the animation
+    const table = jmotion.Siteswap.separate(result.throws, result.sync);
+    const orbits = generator.calculateOrbits(table, result.sync, result.throws);
+    core.animate(orbits, 1);
+    core.scale = generator.scale;
+    core.setStyle({ "stroke-width": generator.width });
+
+    // add to the DOM
+    animation.innerHTML = parent.innerHTML;
+}
+</script>
+
+</main>
+</body>
+
+</html>
