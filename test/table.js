@@ -46,10 +46,10 @@ class TableDealer {
         return this.#foot;
     }
 
-    // create data rows
-    createRows(list, formatted) {
+    // generate data rows
+    generateRows(list, formatted) {
         this.removeRows();
-        this.#createTemplate(formatted);
+        this.#generateTemplate(formatted);
         if (Array.isArray(list) && 0 < list.length) {
             list.forEach(this.addData, this);
         }
@@ -204,8 +204,8 @@ class TableDealer {
         cell.appendChild(element);
     }
 
-    // create a row remplate
-    #createTemplate(formatted) {
+    // generate a row remplate
+    #generateTemplate(formatted) {
         if (!Array.isArray(formatted)) {
             formatted = [];
         }
@@ -281,13 +281,13 @@ class TestTable extends TableDealer {
         this.replaceEvent = null;
     }
 
-    // create the table
-    create(data) {
+    // generate the table
+    generate(data) {
         if (!Array.isArray(data.list) || data.list.length == 0) {
             return;
         }
         this.#list = data.list;
-        super.createRows(data.list, data.formatted);
+        super.generateRows(data.list, data.formatted);
         super.addFoot("number", "total");
         super.setRowNumbers("number");
         if (Array.isArray(data.folding)) {

@@ -70,9 +70,9 @@ class PlaneChain {
         return this;
     }
 
-    // create SVG elements
-    createElements() {
-        return this.#planes.map(elem => elem.createElements()).flat();
+    // generate SVG elements
+    generateElements() {
+        return this.#planes.map(elem => elem.generatePlaneElements()).flat();
     }
 
 }
@@ -149,8 +149,8 @@ class PartBase {
         return this;
     }
 
-    // create SVG elements
-    createElements() {
+    // generate a part element
+    generatePartElement() {
         // start timing
         const begins = [];
         for (const element of this.#begins) {
@@ -215,9 +215,9 @@ class HaltPart extends PartBase {
         return this;
     }
 
-    // create SVG elements
-    createElements() {
-        const element = super.createElements();
+    // generate a part element
+    generatePartElement() {
+        const element = super.generatePartElement();
         element.setAttribute("to", this.#to);
         return element;
     }
@@ -243,9 +243,9 @@ class ValuePart extends PartBase {
         return this;
     }
 
-    // create SVG elements
-    createElements() {
-        const element = super.createElements();
+    // generate a part element
+    generatePartElement() {
+        const element = super.generatePartElement();
         element.setAttribute("values", this.#values.join(";"));
         return element;
     }
@@ -255,9 +255,9 @@ class ValuePart extends PartBase {
 // Parabolic part class
 class ParabolicPart extends ValuePart {
 
-    // create SVG elements
-    createElements() {
-        const element = super.createElements();
+    // generate a part element
+    generatePartElement() {
+        const element = super.generatePartElement();
         element.setAttribute("calcMode", "spline");
         element.setAttribute("keyTimes", "0;0.5;1");
         element.setAttribute("keySplines", "0.33,0.67 0.67,1;0.33,0 0.67,0.33");
@@ -319,9 +319,9 @@ class PlaneBase {
         return this;
     }
 
-    // create SVG elements
-    createElements() {
-        return [ this.#x.createElements(), this.#y.createElements() ].flat();
+    // generate plane elements
+    generatePlaneElements() {
+        return [ this.#x.generatePartElement(), this.#y.generatePartElement() ];
     }
 
 }
@@ -401,9 +401,9 @@ class MotionPlane extends PartBase {
         return this;
     }
 
-    // create SVG elements
-    createElements() {
-        const element = super.createElements();
+    // generate plane elements
+    generatePlaneElements() {
+        const element = super.generatePartElement();
         const count = this.#points.length - 1;
         if (0 < count) {
             // if the part to be used is specified
@@ -414,7 +414,7 @@ class MotionPlane extends PartBase {
         const mpath = document.createElementNS(element.namespaseURI, "mpath");
         mpath.setAttribute("href", `#${this.#href}`);
         element.appendChild(mpath);
-        return element;
+        return [ element ];
     }
 
 }
@@ -441,13 +441,13 @@ class TransformPlane extends PartBase {
         return this;
     }
 
-    // create SVG elements
-    createElements() {
-        const element = super.createElements();
+    // generate plane elements
+    generatePlaneElements() {
+        const element = super.generatePartElement();
         element.setAttribute("type", this.#type);
         element.setAttribute("from", this.#from);
         element.setAttribute("to", this.#to);
-        return element;
+        return [ element ];
     }
 
 }

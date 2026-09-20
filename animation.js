@@ -202,7 +202,7 @@ class SvgCore extends jmotion.Core {
 
     // add animation elements
     #appendAnimation(parent, ...chains) {
-        chains.forEach(elem => elem.createElements().forEach(parent.appendChild, parent));
+        chains.forEach(elem => elem.generateElements().forEach(parent.appendChild, parent));
     }
 
     // add rotation elements
@@ -265,13 +265,13 @@ class AnimGenerator extends jmotion.CalmGenerator {
         // orbit of each arm
         const points = this.#roundPoints(orbits.arms);
         const arms = this.#getArms(points);
-        const timing = this.#createTimings(throws, sync);
+        const timing = this.#generateTimings(throws, sync);
         const hands = [];
         hands.push(this.#getHand(this.paths.right, timing, 0, false, points));
         hands.push(this.#getHand(this.paths.left, timing, 1, !sync, points));
 
         // orbit of each prop
-        const holds = this.#createHolds(arms.map(elem => elem[0]));
+        const holds = this.#generateHolds(arms.map(elem => elem[0]));
         const props = table.map(elem => this.#getProp(elem, holds[0], holds[1], timing, sync));
         return { "arms": arms, "hands": hands, "props": props, "unit": this.#unit };
     }
@@ -293,8 +293,8 @@ class AnimGenerator extends jmotion.CalmGenerator {
         return after;
     }
 
-    // create the timing for the throw
-    #createTimings(throws, sync) {
+    // generate the timing for the throw
+    #generateTimings(throws, sync) {
         const timing = new Array(throws.length).fill().map(() => []);
         for (let i = 0; i < throws.length; i++) {
             for (const number of throws[i]) {
@@ -397,8 +397,8 @@ class AnimGenerator extends jmotion.CalmGenerator {
         return chain;
     }
 
-    // create holding orbits for the props
-    #createHolds() {
+    // generate holding orbits for the props
+    #generateHolds() {
         const moves = [ this.paths.right, this.paths.left ];
         const offset = [ this.offset.right, this.offset.left ];
         const holds = [];
