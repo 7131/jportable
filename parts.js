@@ -122,7 +122,7 @@ class PartBase {
 
     // add the start timing
     addBegin(value) {
-        if (this.#begins.indexOf(value) < 0) {
+        if (!this.#begins.includes(value)) {
             this.#begins.push(value);
         }
         return this;

@@ -144,7 +144,7 @@ class SvgCore extends jmotion.Core {
 
     // get the graphic elements
     #getElements(layer, type, key) {
-        return Array.from(layer.getElementsByTagName(type)).filter(elem => 0 <= elem.id.indexOf(key));
+        return Array.from(layer.getElementsByTagName(type)).filter(elem => elem.id.includes(key));
     }
 
     // get a list of names
